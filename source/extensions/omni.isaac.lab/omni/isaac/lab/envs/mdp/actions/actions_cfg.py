@@ -9,7 +9,7 @@ from omni.isaac.lab.controllers import DifferentialIKControllerCfg
 from omni.isaac.lab.managers.action_manager import ActionTerm, ActionTermCfg
 from omni.isaac.lab.utils import configclass
 
-from . import binary_joint_actions, joint_actions, joint_actions_to_limits, non_holonomic_actions, task_space_actions
+from . import binary_joint_actions, joint_actions, joint_actions_to_limits, non_holonomic_actions, task_space_actions, paralleledQP_actions
 
 ##
 # Joint actions.
@@ -248,3 +248,15 @@ class DifferentialInverseKinematicsActionCfg(ActionTermCfg):
     """Scale factor for the action. Defaults to 1.0."""
     controller: DifferentialIKControllerCfg = MISSING
     """The configuration for the differential IK controller."""
+
+@configclass
+class ParallelledQPActionCfg(ActionTermCfg):
+    """Configuration for ParallelledQP action term.
+    """
+    class_type: type[ActionTerm] = paralleledQP_actions.ParallelledQPAction
+
+    joint_names: list[str] = MISSING
+    """List of joint names or regex expressions that the action will be mapped to."""
+  
+    scale: float | tuple[float, ...] = 1.0
+    """Scale factor for the action. Defaults to 1.0."""

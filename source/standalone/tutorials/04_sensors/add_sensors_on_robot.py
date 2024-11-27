@@ -75,7 +75,23 @@ class SensorsSceneCfg(InteractiveSceneCfg):
         height=480,
         width=640,
         data_types=["rgb", "distance_to_image_plane"],
-        spawn=sim_utils.PinholeCameraCfg(
+        # spawn=sim_utils.UsdFileCfg(usd_path=f"{ISAACLAB_NUCLEUS_DIR}/Robots/Unitree/Go1/go1.usd",
+        # activate_contact_sensors=True,
+        # rigid_props=sim_utils.RigidBodyPropertiesCfg(
+        #     disable_gravity=False,
+        #     retain_accelerations=False,
+        #     linear_damping=0.0,
+        #     angular_damping=0.0,
+        #     max_linear_velocity=1000.0,
+        #     max_angular_velocity=1000.0,
+        #     max_depenetration_velocity=1.0,
+        # ),
+        # articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+        #     enabled_self_collisions=False, solver_position_iteration_count=4, solver_velocity_iteration_count=0
+        # ),
+        # collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0., rest_offset=-0.02)),
+        spawn=sim_utils.FisheyeCameraCfg(
+            projection_type="fisheye_equidistant",
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
         ),
         offset=CameraCfg.OffsetCfg(pos=(0.510, 0.0, 0.015), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),

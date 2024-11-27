@@ -19,7 +19,7 @@ Reference: https://github.com/unitreerobotics/unitree_ros
 """
 
 import omni.isaac.lab.sim as sim_utils
-from omni.isaac.lab.actuators import ActuatorNetMLPCfg, DCMotorCfg, ImplicitActuatorCfg
+from omni.isaac.lab.actuators import ActuatorNetMLPCfg, DCMotorCfg, ImplicitActuatorCfg, IdealPDActuatorCfg
 from omni.isaac.lab.assets.articulation import ArticulationCfg
 from omni.isaac.lab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
@@ -101,6 +101,7 @@ Note: Specifications taken from: https://www.trossenrobotics.com/a1-quadruped#sp
 
 UNITREE_GO1_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
+        #usd_path="/home/legrobot/IsaacLab/asset/go1_with_realsense.usd",
         usd_path=f"{ISAACLAB_NUCLEUS_DIR}/Robots/Unitree/Go1/go1.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
@@ -115,6 +116,7 @@ UNITREE_GO1_CFG = ArticulationCfg(
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=False, solver_position_iteration_count=4, solver_velocity_iteration_count=0
         ),
+        collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0., rest_offset=-0.02),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.4),
@@ -131,6 +133,8 @@ UNITREE_GO1_CFG = ArticulationCfg(
     actuators={
         "base_legs": GO1_ACTUATOR_CFG,
     },
+    
+
 )
 """Configuration of Unitree Go1 using MLP-based actuator model."""
 

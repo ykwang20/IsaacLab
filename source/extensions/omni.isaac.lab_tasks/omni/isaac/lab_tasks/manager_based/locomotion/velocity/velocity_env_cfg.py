@@ -80,6 +80,7 @@ class MySceneCfg(InteractiveSceneCfg):
             texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
         ),
     )
+    camera=None
 
 
 ##
@@ -106,11 +107,15 @@ class CommandsCfg:
 
 
 @configclass
+class QPActionsCfg:
+    """Action specifications for the MDP."""
+    joint_torque = mdp.ParallelledQPActionCfg(asset_name="robot", joint_names=[".*"])
+
+@configclass
 class ActionsCfg:
     """Action specifications for the MDP."""
 
     joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True)
-
 
 @configclass
 class ObservationsCfg:

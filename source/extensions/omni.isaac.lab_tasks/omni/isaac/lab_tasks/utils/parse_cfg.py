@@ -184,8 +184,11 @@ def get_checkpoint_path(
             run_path = runs[-1]
     except IndexError:
         raise ValueError(f"No runs present in the directory: '{log_path}' match: '{run_dir}'.")
-
+# /home/legrobot/IsaacLab/logs/rsl_rl/g1_rough/2024-11-17_15-24-32/model_2999.pt
+# /home/legrobot/IsaacLab/logs/rsl_rl/g1_rough/2024-11-17_15-24-32
     # list all model checkpoints in the directory
+    for f in os.listdir(run_path):
+        print(f)
     model_checkpoints = [f for f in os.listdir(run_path) if re.match(checkpoint, f)]
     # check if any checkpoints are present
     if len(model_checkpoints) == 0:

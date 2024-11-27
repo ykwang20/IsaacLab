@@ -73,6 +73,7 @@ class AssetBase(ABC):
         asset_path = self.cfg.prim_path.split("/")[-1]
         asset_path_is_regex = re.match(r"^[a-zA-Z0-9/_]+$", asset_path) is None
         # spawn the asset
+        print('self.cfg', type(self.cfg))
         if self.cfg.spawn is not None and not asset_path_is_regex:
             self.cfg.spawn.func(
                 self.cfg.prim_path,

@@ -14,6 +14,8 @@ from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
 from omni.isaac.lab.managers import RewardTermCfg as RewTerm
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.managers import TerminationTermCfg as DoneTerm
+from omni.isaac.lab.managers import CommandTermCfg as CmdTerm
+
 from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
 
@@ -140,6 +142,12 @@ class RewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"])},
     )
 
+class CommandCfg(CmdTerm):
+    debug_vis: bool = False
+
+
+    
+   
 
 @configclass
 class TerminationsCfg:
@@ -172,6 +180,7 @@ class CartpoleEnvCfg(ManagerBasedRLEnvCfg):
     # MDP settings
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
+    # commands: CommandCfg=CommandCfg()
 
     # Post initialization
     def __post_init__(self) -> None:

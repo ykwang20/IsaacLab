@@ -302,6 +302,12 @@ def random_grid_terrain(
         make_borders = make_border(cfg.size, border_inner_size, terrain_height, border_center)
         meshes_list += make_borders
     else:
+        print('cfg.size[0]:', cfg.size[0])
+        print('num_boxes_x:', num_boxes_x)
+        print('cfg.grid_width:', cfg.grid_width)
+        print('cfg.size[1]', cfg.size[1])
+        print('num_boxes_y:', num_boxes_y)
+        print('border_width:', border_width)
         raise RuntimeError("Border width must be greater than 0! Adjust the parameter 'cfg.grid_width'.")
 
     # create a template grid of terrain height

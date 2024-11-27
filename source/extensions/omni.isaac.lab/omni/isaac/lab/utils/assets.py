@@ -26,6 +26,7 @@ NUCLEUS_ASSET_ROOT_DIR = carb.settings.get_settings().get("/persistent/isaac/ass
 
 NVIDIA_NUCLEUS_DIR = f"{NUCLEUS_ASSET_ROOT_DIR}/NVIDIA"
 """Path to the root directory on the NVIDIA Nucleus Server."""
+print('NVIDIA_NUCLEUS_DIR',NVIDIA_NUCLEUS_DIR)
 
 ISAAC_NUCLEUS_DIR = f"{NUCLEUS_ASSET_ROOT_DIR}/Isaac"
 """Path to the ``Isaac`` directory on the NVIDIA Nucleus Server."""

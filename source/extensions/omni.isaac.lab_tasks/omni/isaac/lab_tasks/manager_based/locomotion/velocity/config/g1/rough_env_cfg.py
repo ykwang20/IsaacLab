@@ -17,7 +17,7 @@ from omni.isaac.lab_tasks.manager_based.locomotion.velocity.velocity_env_cfg imp
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets import G1_MINIMAL_CFG  # isort: skip
+from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG  # isort: skip
 
 
 @configclass
@@ -124,7 +124,8 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # post init of parent
         super().__post_init__()
         # Scene
-        self.scene.robot = G1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        #self.scene.robot = G1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = G1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
 
         # Randomization
@@ -162,6 +163,11 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        # self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 40
+        # self.sim.physx.gpu_temp_buffer_capacity = 167772160
+        self.sim.physx.gpu_max_rigid_patch_count = 327680
+
+
 
 
 @configclass
