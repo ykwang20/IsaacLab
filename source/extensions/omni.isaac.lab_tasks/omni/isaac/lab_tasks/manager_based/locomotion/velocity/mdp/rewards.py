@@ -103,3 +103,88 @@ def track_ang_vel_z_world_exp(
     asset = env.scene[asset_cfg.name]
     ang_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 2] - asset.data.root_ang_vel_w[:, 2])
     return torch.exp(-ang_vel_error / std**2)
+
+def position_tracking(env, command_name: str,  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Reward tracking of position in the world frame using exponential kernel."""
+    # extract the used quantities (to enable type-hinting)
+    asset = env.scene[asset_cfg.name]
+    # pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
+    #                        +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
+    #return 1-0.5*pos_error
+    pos_error_square = torch.sum(torch.square(env.command_manager.get_command(command_name)[:, :2]
+                            +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2]), dim=1)
+    # print('pos command:',env.command_manager.get_command(command_name)[:, :2])
+    # print('pos robot:',asset.data.root_pos_w[:, :2]-env.scene.env_origins[:,:2])
+    # print('pos error square',pos_error_square)
+    return 1/(1+pos_error_square)
+    
+
+def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalty for waiting."""
+    # extract the used quantities (to enable type-hinting)
+    asset = env.scene[asset_cfg.name]
+    norm_vel=asset.data.root_lin_vel_w.norm(dim=1)
+    pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
+                           +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
+    
+    return torch.where(torch.logical_and(norm_vel<0.2, pos_error>0.5),
+                       torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
+
+def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Reward moving in a specified direction."""
+    # extract the used quantities (to enable type-hinting)
+    # TODO: only xy?
+    asset = env.scene[asset_cfg.name]
+    target_pos_e=env.command_manager.get_command(command_name)
+    target_pos_w=target_pos_e+env.scene.env_origins
+    target_pos_w[:,2]=0
+    direction=target_pos_w-asset.data.root_pos_w
+    vel=asset.data.root_lin_vel_w
+    return torch.cosine_similarity(direction[:,:2],vel[:,:2],dim=1)
+
+def joint_velocity_limits(
+    env: ManagerBasedRLEnv, soft_ratio: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Penalize joint velocities if they cross the soft limits.
+
+    This is computed as a sum of the absolute value of the difference between the joint velocity and the soft limits.
+
+    Args:
+        soft_ratio: The ratio of the soft limits to be used.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset=env.scene[asset_cfg.name]
+    # compute out of limits constraints
+    out_of_limits = (
+        torch.abs(asset.data.joint_vel[:, asset_cfg.joint_ids])
+        - asset.data.soft_joint_vel_limits[:, asset_cfg.joint_ids] * soft_ratio
+    )
+    # clip to max error = 1 rad/s per joint to avoid huge penalties
+    out_of_limits = out_of_limits.clip_(min=0.0)
+    return torch.sum(out_of_limits, dim=1)
+
+def base_lin_ang_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize the linear acceleration of bodies using L2-kernel."""
+    asset=env.scene[asset_cfg.name]
+    root_id=asset.find_bodies("torso_link")[0]
+    return (torch.sum(torch.square(asset.data.body_lin_acc_w[:, root_id,:]), dim=-1).squeeze(-1)
+            +0.02*torch.sum(torch.square(asset.data.body_ang_acc_w[:,root_id, :]), dim=-1).squeeze(-1))
+
+def feet_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize the acceleration of the feet using L2-kernel."""
+    # extract the used quantities (to enable type-hinting)
+    asset = env.scene[asset_cfg.name]
+    feet_ids = asset.find_bodies(".*_ankle_roll_link")[0]
+    return torch.sum(torch.norm(asset.data.body_lin_acc_w[:, feet_ids, :],dim=-1), dim=-1)
+
+def stand_at_target(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),) -> torch.Tensor:
+    """Penalize joint positions that deviate from the default one."""
+    # extract the used quantities (to enable type-hinting)
+    asset = env.scene[asset_cfg.name]
+    # compute out of limits constraints
+    angle = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    penalty=torch.sum(torch.abs(angle), dim=1)
+    reach_target= torch.norm(env.command_manager.get_command(command_name)[:, :2]
+                    +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)<0.25
+    return torch.where(reach_target,penalty,torch.zeros_like(penalty))
+

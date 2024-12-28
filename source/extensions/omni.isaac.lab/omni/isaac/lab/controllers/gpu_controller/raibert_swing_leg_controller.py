@@ -81,7 +81,7 @@ def compute_desired_foot_positions(
   # print("Base Velocity World Frame:\n", base_velocity[indices])
   hip_velocity_body_frame = cross_quad(base_angular_velocity_body_frame,
                                        hip_positions_in_body_frame)
-  print("Hip Velocity Body Frame:\n", hip_velocity_body_frame[indices])
+  #print("Hip Velocity Body Frame:\n", hip_velocity_body_frame[indices])
   hip_velocity = base_velocity[:, None, :] + torch.matmul(
       base_rot_mat, hip_velocity_body_frame.transpose(1, 2)).transpose(1, 2)
   # print("Hip Velocity World Frame:\n", hip_velocity[indices])
@@ -102,8 +102,8 @@ def compute_desired_foot_positions(
 
   mid_position+=mid_residual
   land_position+=land_residual
-  print("Mid residual World Frame:\n", mid_residual[0])
-  print("Land residual World Frame:\n", land_residual[0])
+  # print("Mid residual World Frame:\n", mid_residual[0])
+  # print("Land residual World Frame:\n", land_residual[0])
   
 
   foot_position = _gen_swing_foot_trajectory(normalized_phase,
@@ -158,6 +158,7 @@ class RaibertSwingLegController:
     self.land_y_range=[-0.1,0.1]
     self.highest_phase_range=[0.2,0.8]
 
+
     self.reset()
 
   def reset(self) -> None:
@@ -177,7 +178,13 @@ class RaibertSwingLegController:
         self._robot.foot_positions_in_base_frame[env_ids].transpose(1, 2)).transpose(1, 2)
     # print("Phase Switch Foot Positions in Reset_idx:\n", self._phase_switch_foot_positions)
 
-  def update(self) -> None:
+  def update(self, swing_command) -> None:
+
+    cmd_mid_z_residual=swing_command[:,:4]
+    cmd_land_x_residual=swing_command[:,4:8]
+    cmd_land_y_residual=swing_command[:,8:12]
+    cmd_highest_phase=swing_command[:,12].unsqueeze(1)
+
     new_leg_state = torch.clone(self._gait_generator.desired_contact_state)
     new_foot_positions = torch.matmul(
         self._robot.base_rot_mat,
@@ -194,6 +201,7 @@ class RaibertSwingLegController:
     new_mid_residual=torch.clone(self.mid_residual)
     new_land_residual=torch.clone(self.land_residual)
 
+
     new_highest_phase=torch.rand_like(self._gait_generator.normalized_phase) * (self.highest_phase_range[1] - self.highest_phase_range[0]) + self.highest_phase_range[0]
     new_mid_residual[...,0]= torch.rand_like(self.mid_residual[...,0]) * (self.mid_x_range[1] - self.mid_x_range[0]) + self.mid_x_range[0]
     new_mid_residual[...,1]= torch.rand_like(self.mid_residual[...,1]) * (self.mid_y_range[1] - self.mid_y_range[0]) + self.mid_y_range[0]
@@ -201,7 +209,11 @@ class RaibertSwingLegController:
     new_land_residual[...,0]= torch.rand_like(self.land_residual[...,0]) * (self.land_x_range[1] - self.land_x_range[0]) + self.land_x_range[0]
     new_land_residual[...,1]= torch.rand_like(self.land_residual[...,1]) * (self.land_y_range[1] - self.land_y_range[0]) + self.land_y_range[0]
 
-    print('new_mid_residual:', new_mid_residual[0])
+    #print('new_mid_residual:', new_mid_residual[0])
+    new_highest_phase=cmd_highest_phase
+    new_mid_residual[...,2]=cmd_mid_z_residual
+    new_land_residual[...,0]=cmd_land_x_residual
+    new_land_residual[...,1]=cmd_land_y_residual
 
     self.highest_phase=torch.where(self._last_leg_state == new_leg_state,
                     self.highest_phase, new_highest_phase)
@@ -209,7 +221,7 @@ class RaibertSwingLegController:
                    [1, 1, 3]), self.mid_residual, new_mid_residual)
     self.land_residual=torch.where(torch.tile((self._last_leg_state == new_leg_state)[:, :, None],
                    [1, 1, 3]), self.land_residual, new_land_residual)
-    print('mid_residual:', self.mid_residual[0])
+    #print('mid_residual:', self.mid_residual[0])
 
     self._last_leg_state = new_leg_state
 
@@ -219,6 +231,9 @@ class RaibertSwingLegController:
 
     Note: it returns an invalid position for stance legs.
     """
+    # print('mid_residual:', self.mid_residual)
+    # print('land_residual:', self.land_residual)
+    # print('highest_phase:', self.highest_phase)
     return compute_desired_foot_positions(
         self._robot.base_rot_mat,
         self._robot.base_position[:, 2],

@@ -60,6 +60,7 @@ class ParallelledQPAction(ActionTerm):
         # create tensors for raw and processed actions
         self._raw_actions = torch.zeros(self.num_envs, self.action_dim, device=self.device)
         self._processed_actions = torch.zeros_like(self.raw_actions)
+        self._scale = torch.tensor(self.cfg.scale, device=self.device)
 
        
 
@@ -71,7 +72,7 @@ class ParallelledQPAction(ActionTerm):
 
     @property
     def action_dim(self) -> int:
-        return 3
+        return 16#7 
 
     @property
     def raw_actions(self) -> torch.Tensor:
@@ -87,17 +88,27 @@ class ParallelledQPAction(ActionTerm):
 
     def process_actions(self, actions: torch.Tensor):
         # store the raw actions
-        
+        update_action=self._env.episode_length_buf % 20==0
         self._raw_actions[:] = actions
-        self._processed_actions[:] = self.raw_actions
+        self._processed_actions[:] = torch.where(update_action.unsqueeze(1),self.raw_actions * self._scale, self.processed_actions)
+        self._processed_actions[:,:3].clamp_(-0.1,0.1)
+        self._processed_actions[:,3:7].clamp_(-0.1,0.1)
+        self._processed_actions[:,7:11].clamp_(-0.1,0.1)
+        self._processed_actions[:,11:15].clamp_(-0.1,0.1)
+        self._processed_actions[:,15].clamp_(0.5,0.5)
+
+        self._processed_actions[:,:15]=0
+
+        self._processed_actions[:,:3]+=self._env.command_manager.get_command('base_velocity')
         # obtain quantities from simulation
         #ee_pos_curr, ee_quat_curr = self._compute_frame_pose()
         #TODO: update quat...
         # set command into controller
         self.controller.set_command(self._processed_actions)
+        self.cmd_command=self._processed_actions
 
     def apply_actions(self):
-        joint_torques=self.controller.compute_torques()
+        joint_torques=self.controller.compute_torques(self.cmd_command)
         # # obtain quantities from simulation
         # ee_pos_curr, ee_quat_curr = self._compute_frame_pose()
         # joint_pos = self._asset.data.joint_pos[:, self._joint_ids]
@@ -111,7 +122,6 @@ class ParallelledQPAction(ActionTerm):
         # print('joint torques in applay_actions:',joint_torques)
         # joint_torques=torch.zeros_like(joint_torques)
         # joint_torques[:,:4]=10
-
         self._asset.set_joint_effort_target(target=joint_torques, joint_ids=self._joint_ids)
 
     def reset(self, env_ids: Sequence[int] | None = None) -> None:

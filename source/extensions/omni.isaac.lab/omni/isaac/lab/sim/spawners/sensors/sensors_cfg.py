@@ -184,7 +184,7 @@ class FisheyeCameraCfg(PinholeCameraCfg):
     func: Callable = sensors.spawn_camera
 
     projection_type: Literal[
-        "fisheye_orthographic", "fisheye_equidistant", "fisheye_equisolid", "fisheye_polynomial", "fisheye_spherical"
+        "fisheye_orthographic", "fisheyeEquidistant", "fisheye_equisolid", "fisheye_polynomial", "fisheye_spherical"
     ] = "fisheye_polynomial"
     r"""Type of projection to use for the camera. Defaults to "fisheye_polynomial".
 

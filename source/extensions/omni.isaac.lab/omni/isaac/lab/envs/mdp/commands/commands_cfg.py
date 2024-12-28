@@ -15,6 +15,7 @@ from .null_command import NullCommand
 from .pose_2d_command import TerrainBasedPose2dCommand, UniformPose2dCommand
 from .pose_command import UniformPoseCommand
 from .velocity_command import NormalVelocityCommand, UniformVelocityCommand
+from .target_command import TargetCommand
 
 
 @configclass
@@ -28,6 +29,16 @@ class NullCommandCfg(CommandTermCfg):
         # set the resampling time range to infinity to avoid resampling
         self.resampling_time_range = (math.inf, math.inf)
 
+@configclass
+class TargetCommandCfg(CommandTermCfg):
+    class_type: type= TargetCommand
+    asset_name: str = 'robot'
+    radius_range: tuple[float, float] = (2.0, 5.0)
+
+    target_visualizer_cfg: VisualizationMarkersCfg = GREEN_ARROW_X_MARKER_CFG.replace(
+        prim_path="/Visuals/Command/target_pos"
+    )
+    target_visualizer_cfg.markers["arrow"].scale = (0.5, 0.5, 0.5)
 
 @configclass
 class UniformVelocityCommandCfg(CommandTermCfg):

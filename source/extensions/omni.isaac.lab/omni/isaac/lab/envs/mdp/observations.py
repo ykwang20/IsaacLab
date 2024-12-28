@@ -529,3 +529,11 @@ Commands.
 def generated_commands(env: ManagerBasedRLEnv, command_name: str) -> torch.Tensor:
     """The generated command from command term in the command manager with the given name."""
     return env.command_manager.get_command(command_name)
+
+def target_pos_root_frame(env: ManagerBasedRLEnv, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """The target position in the root frame of the asset."""
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    target_pos_w=env.command_manager.get_command(command_name)+env.scene.env_origins
+    target_pos_w[:,2]=0
+    return target_pos_w-asset.data.root_pos_w

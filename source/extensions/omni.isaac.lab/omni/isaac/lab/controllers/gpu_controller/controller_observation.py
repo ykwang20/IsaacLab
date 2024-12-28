@@ -39,8 +39,9 @@ class ControllerObservation:
         self.update(True)
 
     def update(self, initializing=False):
+        residual= (self.env._sim_step_counter % self.env.cfg.decimation)*self.env.physics_dt
         if not initializing:
-            self.time_since_reset = (self.env.episode_length_buf*self.env.step_dt).view(-1)
+            self.time_since_reset = (self.env.episode_length_buf*self.env.step_dt+residual).view(-1)
         else:
             self.time_since_reset=torch.zeros((self.num_robot), device=self.device)
         self.base_position = self.asset.data.root_pos_w
@@ -66,7 +67,6 @@ class ControllerObservation:
         self.jacobian = self.jacobian[:,self.gym_body_id, :,:]
         indices = torch.tensor([0,], device=self.device)
     
-        # print("Time Since Reset: ", self.time_since_reset[indices])
         # print("Base Position:\n", self.base_position[indices])
         # print("Base Quat:\n", self.base_quat[indices])
         # # print("Base Linear Velocity World:\n", self.base_lin_vel_world[indices])

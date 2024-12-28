@@ -32,25 +32,34 @@ class LocomotionController:
         self.angles_logger=[]
         self.time_steps=500
 
-    def set_command(self, velocity_command: torch.Tensor):
+    def set_command(self, command: torch.Tensor):
         #TODO: the frequency between these two needs to be tuned
+        velocity_command = command[:, :3] # equals to command + residual velocity
+        # swing_command = command[:, 3:] # mid z, land x, land y, highest phase
+        
+        # self._velocity_command = velocity_command
+        # self._velocity_command[:] = torch.clip(self._velocity_command, -self._max_velocity, self._max_velocity)
+        # self._velocity_command[:, 0] = 0.4
+        # self._velocity_command[:, 1] = 0.
+        # self._velocity_command[:, 2] = 0
+        # self._torque_optimizer.desired_linear_velocity = torch.stack((self._velocity_command[:, 0], self._velocity_command[:, 1], self._zero), dim=1)
+        # self._torque_optimizer.desired_angular_velocity = torch.stack((self._zero, self._zero, self._velocity_command[:, 2]), dim=1)
+
+    def compute_torques(self, command):
+        #TODO: the frequency between these two needs to be tuned
+        velocity_command = command[:, :3] # equals to command + residual velocity
+        swing_command = command[:, 3:] # mid z, land x, land y, highest phase
+        
+        self._velocity_command = velocity_command
+        self._velocity_command[:] = torch.clip(self._velocity_command, -self._max_velocity, self._max_velocity)
+        #print('desired contact state:', self._gait_generator.desired_contact_state)
         self._obs.update()
         self._robot.update()
         self._gait_generator.update()
-        self._swing_leg_controller.update()
-        self._velocity_command += velocity_command
-        self._velocity_command[:] = torch.clip(self._velocity_command, -self._max_velocity, self._max_velocity)
-        # print("Velocity Command: ", self._velocity_command)
-        self._velocity_command[:, 0] = 0.4
-        self._velocity_command[:, 1] = 0.
-        self._velocity_command[:, 2] = 0
+        self._swing_leg_controller.update(swing_command)
+
         self._torque_optimizer.desired_linear_velocity = torch.stack((self._velocity_command[:, 0], self._velocity_command[:, 1], self._zero), dim=1)
         self._torque_optimizer.desired_angular_velocity = torch.stack((self._zero, self._zero, self._velocity_command[:, 2]), dim=1)
-
-    def compute_torques(self):
-        #TODO: the frequency between these two needs to be tuned
-        
-        #print('desired contact state:', self._gait_generator.desired_contact_state)
         self._motor_command, _, _, _, _ = self._torque_optimizer.get_action(
             foot_contact_state=self._gait_generator.desired_contact_state,
             swing_foot_position=self._swing_leg_controller.desired_foot_positions)

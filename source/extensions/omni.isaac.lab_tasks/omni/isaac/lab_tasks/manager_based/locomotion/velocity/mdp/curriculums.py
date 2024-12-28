@@ -53,3 +53,37 @@ def terrain_levels_vel(
     terrain.update_env_origins(env_ids, move_up, move_down)
     # return the mean terrain level
     return torch.mean(terrain.terrain_levels.float())
+
+def terrain_levels_target(
+    env: ManagerBasedRLEnv, env_ids: Sequence[int], reached_distance: float, minimal_covered: float,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Curriculum based on the distance the of the robot to the target pos.
+
+    This term is used to increase the difficulty of the terrain when the robot walks close enough to the target and decrease the
+    difficulty ...
+
+    .. note::
+        It is only possible to use this term with the terrain type ``generator``. For further information
+        on different terrain types, check the :class:`omni.isaac.lab.terrains.TerrainImporter` class.
+
+    Returns:
+        The mean terrain level for the given environment ids.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    terrain: TerrainImporter = env.scene.terrain
+    target_pos_e = env.command_manager.get_command("target_pos_e")
+    target_pos_w=target_pos_e+env.scene.env_origins
+    target_pos_w[:,2]=0
+    # compute the distance the robot walked
+    covered_distance = torch.norm(asset.data.root_pos_w[env_ids, :2] - env.scene.env_origins[env_ids, :2], dim=1)
+    remaining_distance = torch.norm(target_pos_w[env_ids, :2] - asset.data.root_pos_w[env_ids, :2], dim=1)
+    # robots that walked far enough progress to harder terrains
+    move_up = remaining_distance < reached_distance
+    # robots that walked less than half of their required distance go to simpler terrains
+    move_down = covered_distance < minimal_covered
+    move_down *= ~move_up
+    # update terrain levels
+    terrain.update_env_origins(env_ids, move_up, move_down)
+    # return the mean terrain level
+    return torch.mean(terrain.terrain_levels.float())

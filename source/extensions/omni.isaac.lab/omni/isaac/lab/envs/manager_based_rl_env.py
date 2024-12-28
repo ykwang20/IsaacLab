@@ -86,6 +86,7 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
 
         print("[INFO]: Completed setting up the environment...")
 
+
     """
     Properties.
     """

@@ -228,6 +228,7 @@ def applied_torque_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = Sc
     out_of_limits = torch.abs(
         asset.data.applied_torque[:, asset_cfg.joint_ids] - asset.data.computed_torque[:, asset_cfg.joint_ids]
     )
+    out_of_limits = out_of_limits.clip_(min=0.0)
     return torch.sum(out_of_limits, dim=1)
 
 
@@ -296,3 +297,20 @@ def track_ang_vel_z_exp(
     # compute the error
     ang_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 2] - asset.data.root_ang_vel_b[:, 2])
     return torch.exp(-ang_vel_error / std**2)
+
+def foot_on_obj(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize undesired contacts as the number of violations that are above a threshold."""
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    #print("CONTACT SENSOR: ", contact_sensor)
+    asset: Articulation = env.scene[asset_cfg.name]
+    # check if contact force is above threshold
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    feet_ids=[13,14,15,16]
+    is_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold
+    is_contact_mask=is_contact.int()
+    plane_height=0.02    
+    feet_height=asset.data.body_pos_w[:, feet_ids,2] - plane_height
+    contact_feet_height = feet_height * is_contact_mask
+    # sum over contacts for each environment
+    return torch.sum(torch.square(contact_feet_height), dim=1)
