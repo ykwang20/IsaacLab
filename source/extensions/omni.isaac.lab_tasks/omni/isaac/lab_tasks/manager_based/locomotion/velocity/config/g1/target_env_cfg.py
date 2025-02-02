@@ -23,7 +23,7 @@ from omni.isaac.lab_tasks.manager_based.locomotion.velocity.velocity_env_cfg imp
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG, G1_29_CFG  # isort: skip
+from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG, G1_29_CFG,G1_29_MINIMAL_CFG # isort: skip
 import omni.isaac.lab.terrains as terrain_gen
 import math
 
@@ -125,7 +125,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
 
 @configclass
 class ObservationsCfg:
-    """Observation specifications for the MDP."""
+    """Observation specifications for the MDP."""                               
 
     @configclass
     class PolicyCfg(ObsGroup):
@@ -142,7 +142,7 @@ class ObservationsCfg:
         velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
         joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-1.5, n_max=1.5))
-        actions = ObsTerm(func=mdp.last_action)
+        actions = ObsTerm(func=mdp.last_processed_action, params={"action_name":"joint_pos"})
         height_scan = ObsTerm(
             func=mdp.height_scan,
             params={"sensor_cfg": SceneEntityCfg("height_scanner")},
@@ -207,7 +207,7 @@ class G1TargetEnvCfg(LocomotionVelocityRoughEnvCfg):
         }
 
         # self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 40
-        # self.sim.physx.gpu_temp_buffer_capacity = 167772160
+        self.sim.physx.gpu_temp_buffer_capacity = 167772160
         self.sim.physx.gpu_max_rigid_patch_count = 327680
 
 

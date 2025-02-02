@@ -277,7 +277,7 @@ class RewardsCfg:
     action_l2 = RewTerm(func=mdp.action_l2, weight=-0.0001)
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
 
-    # -- optional penalties (these are disabled by default)
+    #-- optional penalties (these are disabled by default)
     # object_away_penalty = RewTerm(
     #     func=mdp.is_terminated_term,
     #     weight=-0.0,

@@ -43,13 +43,14 @@ class JointPositionActionCfg(JointActionCfg):
     class_type: type[ActionTerm] = joint_actions.JointPositionAction
 
     use_default_offset: bool = True
+
     """Whether to use default joint positions configured in the articulation asset as offset.
     Defaults to True.
-
+    
     If True, this flag results in overwriting the values of :attr:`offset` to the default joint positions
     from the articulation asset.
     """
-
+    clip: dict[str, tuple] = {".*_joint":(-10., 10.)}
 
 @configclass
 class RelativeJointPositionActionCfg(JointActionCfg):

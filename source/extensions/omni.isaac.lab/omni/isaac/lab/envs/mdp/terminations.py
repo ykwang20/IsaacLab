@@ -71,6 +71,47 @@ def root_height_below_minimum(
     asset: RigidObject = env.scene[asset_cfg.name]
     return asset.data.root_link_pos_w[:, 2] < minimum_height
 
+def root_height_above_maximum(
+    env: ManagerBasedRLEnv, maximum_height=0.7, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Terminate when the asset's root height is above the maximum height.
+
+    Note:
+        This is currently only supported for flat terrains, i.e. the maximum height is in the world frame.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    return asset.data.root_link_pos_w[:, 2] > maximum_height
+
+def stepped_on(
+    env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEntityCfg, platform_width: float, reached_distance:float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Terminate when the asset's root link is in contact with the ground.
+
+    Note:
+        This is currently only supported for flat terrains.
+    """
+    # extract the used quantities (to enable type-hinting) 
+    asset: RigidObject = env.scene[asset_cfg.name]
+    feet_ids = asset.find_bodies(".*_ankle_roll_link")[0]
+    # high=torch.logical_and(asset.data.body_pos_w[:, feet_ids[0], 2]>0.02, asset.data.body_pos_w[:, feet_ids[1], 2]>0.02)
+    # high = torch.logical_and(high, asset.data.root_link_pos_w[:, 2] > 0.2)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    contact=torch.all(torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold, dim=1)
+    target_pos_e = env.command_manager.get_command("target_pos_e")
+    target_pos_w=target_pos_e+env.scene.env_origins
+    target_pos_w[:,2]=0
+    
+    remaining_distance = torch.norm(target_pos_w[:, :2] - asset.data.root_pos_w[:, :2], dim=1)
+    # robots that walked far enough progress to harder terrains
+    near = remaining_distance < reached_distance
+    
+    #far = torch.abs(asset.data.root_link_pos_w[:,0]-env.scene.env_origins[:,0])>(platform_width/2+0.05)
+    stepped=torch.logical_and(near, contact)
+    # print('near', near)
+    # print('contact', contact)
+    return stepped
 
 """
 Joint terminations.

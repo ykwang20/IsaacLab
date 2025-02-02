@@ -130,7 +130,7 @@ def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityC
     pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
                            +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
     
-    return torch.where(torch.logical_and(norm_vel<0.2, pos_error>0.5),
+    return torch.where(torch.logical_and(norm_vel<0.2, pos_error>0.2),
                        torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
 
 def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -173,12 +173,31 @@ def base_lin_ang_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     return (torch.sum(torch.square(asset.data.body_lin_acc_w[:, root_id,:]), dim=-1).squeeze(-1)
             +0.02*torch.sum(torch.square(asset.data.body_ang_acc_w[:,root_id, :]), dim=-1).squeeze(-1))
 
+def base_lin_ang_vel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset=env.scene[asset_cfg.name]
+    return torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)+0.02*torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)
+
 def feet_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize the acceleration of the feet using L2-kernel."""
     # extract the used quantities (to enable type-hinting)
     asset = env.scene[asset_cfg.name]
     feet_ids = asset.find_bodies(".*_ankle_roll_link")[0]
     return torch.sum(torch.norm(asset.data.body_lin_acc_w[:, feet_ids, :],dim=-1), dim=-1)
+
+def feet_height(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize the acceleration of the feet using L2-kernel."""
+    # extract the used quantities (to enable type-hinting)
+    asset = env.scene[asset_cfg.name]
+    feet_ids = asset.find_bodies(".*_ankle_roll_link")[0]
+    # print('feet height',asset.data.body_pos_w[:, feet_ids, 2])
+    # print('body height',asset.data.root_link_pos_w[:, 2])
+    return torch.sum(asset.data.body_pos_w[:, feet_ids, 2].clip(max=0.02), dim=-1)
+
+def body_height(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize the acceleration of the feet using L2-kernel."""
+    # extract the used quantities (to enable type-hinting)
+    asset = env.scene[asset_cfg.name]
+    return asset.data.root_link_pos_w[:, 2]
 
 def stand_at_target(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),) -> torch.Tensor:
     """Penalize joint positions that deviate from the default one."""
@@ -191,3 +210,37 @@ def stand_at_target(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneE
                     +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)<0.25
     return torch.where(reach_target,penalty,torch.zeros_like(penalty))
 
+def stable_at_target(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),) -> torch.Tensor:
+    """Penalize joint positions that deviate from the default one."""
+    # extract the used quantities (to enable type-hinting)
+    asset = env.scene[asset_cfg.name]
+    feet_ids = asset.find_bodies(".*_ankle_roll_link")[0]
+    feet_on_air=torch.sum(asset.data.body_pos_w[:, feet_ids, 2], dim=-1)
+    move_quickly=torch.sum(torch.square(asset.data.joint_vel[:, asset_cfg.joint_ids]), dim=1)
+    reach_target= torch.norm(env.command_manager.get_command(command_name)[:, :2]
+                    +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)<0.1
+    return torch.where(reach_target,feet_on_air+move_quickly,torch.zeros_like(feet_on_air))
+
+
+
+def contact_terminated(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Penalize terminated episodes that don't correspond to episodic timeouts."""
+    value=env.termination_manager.get_term('base_contact').float()
+
+    return value
+
+def stepped_terminated(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Penalize terminated episodes that don't correspond to episodic timeouts."""
+    value=env.termination_manager.get_term('success').float()
+    return value
+
+def body_on_air(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
+    """Terminate when the contact force on the sensor exceeds the force threshold."""
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    # check if any contact force exceeds the threshold
+    on_air=~torch.any(
+        torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold, dim=1
+    )
+    return on_air

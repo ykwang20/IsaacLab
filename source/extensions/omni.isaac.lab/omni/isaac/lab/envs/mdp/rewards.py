@@ -35,6 +35,7 @@ def is_alive(env: ManagerBasedRLEnv) -> torch.Tensor:
 
 def is_terminated(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Penalize terminated episodes that don't correspond to episodic timeouts."""
+ 
     return env.termination_manager.terminated.float()
 
 
@@ -94,7 +95,7 @@ def flat_orientation_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = Scen
     """
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject = env.scene[asset_cfg.name]
-    return torch.sum(torch.square(asset.data.projected_gravity_b[:, :2]), dim=1)
+    return torch.linalg.norm((asset.data.projected_gravity_b[:, :2]), dim=1)
 
 
 def base_height_l2(
@@ -277,6 +278,7 @@ def contact_forces(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEn
     # compute the violation
     violation = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] - threshold
     # compute the penalty
+    #print("VIOLATION: ", violation)
     return torch.sum(violation.clip(min=0.0), dim=1)
 
 

@@ -230,6 +230,8 @@ def imu_lin_acc(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg
     asset: Imu = env.scene[asset_cfg.name]
     return asset.data.lin_acc_b
 
+def box_height(env: ManagerBasedEnv) -> torch.Tensor:
+    return (0-env.scene.env_origins[:, 2]).unsqueeze(-1)
 
 def image(
     env: ManagerBasedEnv,
@@ -521,6 +523,14 @@ def last_action(env: ManagerBasedEnv, action_name: str | None = None) -> torch.T
         return env.action_manager.get_term(action_name).raw_actions
 
 
+def last_processed_action(env: ManagerBasedEnv, action_name: str | None = None) -> torch.Tensor:
+    """The last processed action to the environment.
+
+    The name of the action term for which the action is required. If None, the
+    entire processed action tensor is returned.
+    """
+   
+    return env.action_manager.get_term(action_name).processed_actions
 """
 Commands.
 """

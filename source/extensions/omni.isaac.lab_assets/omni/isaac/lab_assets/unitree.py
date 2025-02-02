@@ -399,7 +399,8 @@ G1_CFG = ArticulationCfg(
 
 
 G1_MINIMAL_CFG = G1_CFG.copy()
-G1_MINIMAL_CFG.spawn.usd_path = f"{ISAACLAB_NUCLEUS_DIR}/Robots/Unitree/G1/g1_minimal.usd"
+G1_MINIMAL_CFG.spawn.usd_path = f"{ISAACLAB_NUCLEUS_DIR}/Robots/Unitree/G1/g1_minimal.usd" 
+#G1_MINIMAL_CFG.spawn.usd_path = "/home/legrobot/IsaacLab/asset/g1/g1_minimal.usd"#add mass to torso and pelvis
 """Configuration for the Unitree G1 Humanoid robot with fewer collision meshes.
 
 This configuration removes most collision meshes to speed up simulation.
@@ -430,9 +431,9 @@ G1_29_CFG = ArticulationCfg(
             ".*_ankle_pitch_joint": -0.23,
             ".*_elbow_joint": 0.87,
             "left_shoulder_roll_joint": 0.16,
-            "left_shoulder_pitch_joint": 0.35,
+            "left_shoulder_pitch_joint": -0.35,#0.35,
             "right_shoulder_roll_joint": -0.16,
-            "right_shoulder_pitch_joint": 0.35,
+            "right_shoulder_pitch_joint": -0.35,#0.35,
         },
         joint_vel={".*": 0.0},
     ),
@@ -541,4 +542,7 @@ G1_29_CFG = ArticulationCfg(
 )
 
 G1_29_MINIMAL_CFG = G1_29_CFG.copy()
-G1_29_MINIMAL_CFG.spawn.usd_path = "/home/legrobot/IsaacLab/asset/g1/g1_29dof_feetmod_minimal.usd",
+G1_29_MINIMAL_CFG.spawn.usd_path = "/home/legrobot/IsaacLab/asset/g1/g1_29dof_feetmod_minimal.usd"
+G1_29_MODIFIED_CFG = G1_29_CFG.copy()
+# TODO: change usd
+G1_29_MODIFIED_CFG.spawn.usd_path = "/home/legrobot/IsaacLab/asset/g1/g1_29dof_modified.usd"

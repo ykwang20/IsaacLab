@@ -100,19 +100,35 @@ class TargetCommand(CommandTerm):
         # time for which the command was executed
         pass
 
+    # def _resample_command(self, env_ids: Sequence[int]):
+    #     num_envs = len(env_ids)
+    #     R=self.radius_range[1]
+    #     r=self.radius_range[0]
+    #     # 随机生成半径，范围在内径和外径之间
+    #     radii = torch.sqrt(torch.rand(num_envs,device=self.device) * (R**2 - r**2) + r**2)
+    #     # 随机生成角度
+    #     angles = torch.rand(num_envs,device=self.device) * 2 * torch.pi
+    #     # 计算点的相对坐标
+    #     x_offsets = radii * torch.cos(angles)
+    #     y_offsets = radii * torch.sin(angles)
+    #     # 生成最终的点
+    #     self.target_command_e[env_ids,:2]= torch.stack((x_offsets, y_offsets), dim=1)
+
     def _resample_command(self, env_ids: Sequence[int]):
         num_envs = len(env_ids)
+        
         R=self.radius_range[1]
         r=self.radius_range[0]
         # 随机生成半径，范围在内径和外径之间
         radii = torch.sqrt(torch.rand(num_envs,device=self.device) * (R**2 - r**2) + r**2)
         # 随机生成角度
-        angles = torch.rand(num_envs,device=self.device) * 2 * torch.pi
+
         # 计算点的相对坐标
-        x_offsets = radii * torch.cos(angles)
-        y_offsets = radii * torch.sin(angles)
+        x_offsets = radii 
+        y_offsets = self.robot.data.root_link_pos_w[env_ids,1] - self._env.scene.env_origins[env_ids,1]
         # 生成最终的点
         self.target_command_e[env_ids,:2]= torch.stack((x_offsets, y_offsets), dim=1)
+    
 
     def _update_command(self):
         """Post-processes the velocity command.
