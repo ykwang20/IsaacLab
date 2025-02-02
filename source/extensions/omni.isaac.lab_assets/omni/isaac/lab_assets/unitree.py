@@ -408,7 +408,7 @@ This configuration removes most collision meshes to speed up simulation.
 
 G1_29_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path="/home/legrobot/IsaacLab/source/asset/g1/g1_29dof_feetmod.usd",
+        usd_path="/home/legrobot/IsaacLab/source/asset/g1/g1_29dof.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
