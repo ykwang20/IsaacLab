@@ -542,7 +542,8 @@ G1_29_CFG = ArticulationCfg(
 )
 
 G1_29_MINIMAL_CFG = G1_29_CFG.copy()
-G1_29_MINIMAL_CFG.spawn.usd_path = "/home/legrobot/IsaacLab/source/asset/g1/g1_29dof_feetmod_minimal.usd"
+G1_29_MINIMAL_CFG.spawn.usd_path = "source/asset/g1/g1_29dof_feetmod_minimal.usd"
 G1_29_MODIFIED_CFG = G1_29_CFG.copy()
 # TODO: change usd
-G1_29_MODIFIED_CFG.spawn.usd_path = "/home/legrobot/IsaacLab/source/asset/g1/g1_29dof_modified.usd"
+#G1_29_MODIFIED_CFG.spawn.usd_path = "/home/legrobot/IsaacLab/source/asset/g1/g1_29dof_modified.usd"
+G1_29_MODIFIED_CFG.spawn.usd_path = "source/asset/g1/g1_29dof_modified.usd"
