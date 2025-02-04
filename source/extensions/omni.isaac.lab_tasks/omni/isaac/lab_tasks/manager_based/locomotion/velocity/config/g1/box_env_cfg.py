@@ -50,12 +50,12 @@ class G1Rewards:
     base_acc_penalty=RewTerm(func=mdp.base_lin_ang_acc, weight=-0.01)
     feet_acc_penalty=RewTerm(func=mdp.feet_acc, weight=-0.0002)
     rigid_body_acc_penalty=RewTerm(func=mdp.body_lin_acc_l2, weight=-0.002,params={"asset_cfg" :SceneEntityCfg("robot", 
-                                            body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link","torso_link"])})
+                                            body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"])})
     contact_penalty=RewTerm(func=mdp.contact_forces, weight=-0.005,
-                            params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link","torso_link"]), 
+                            params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), 
                                     "threshold": 350.0})
     air_penalty = RewTerm(func=mdp.body_on_air, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",
-                                            body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link", "torso_link"]), "threshold": 1.0,})
+                                            body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link", "torso_link","pelvis"]), "threshold": 1.0,})
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
     #TODO: base vel
     base_vel_penalty=RewTerm(func=mdp.base_lin_ang_vel, weight=-0.01)
@@ -209,7 +209,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         # post init of parent
         # Scene
 
-        self.scene.robot = G1_29_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = G1_29_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
         super().__post_init__()
