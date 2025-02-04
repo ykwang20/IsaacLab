@@ -243,4 +243,6 @@ def body_on_air(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: f
     on_air=~torch.any(
         torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold, dim=1
     )
+    on_air = torch.logical_and(on_air, env.episode_length_buf>20)
+    #print('on air:',on_air)
     return on_air

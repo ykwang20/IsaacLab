@@ -113,6 +113,16 @@ def stepped_on(
     # print('contact', contact)
     return stepped
 
+def on_air(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    # check if any contact force exceeds the threshold
+    on_air=~torch.any(
+        torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold, dim=1
+    )
+    on_air = torch.logical_and(on_air, env.episode_length_buf>20)
+    return on_air
+
 """
 Joint terminations.
 """
