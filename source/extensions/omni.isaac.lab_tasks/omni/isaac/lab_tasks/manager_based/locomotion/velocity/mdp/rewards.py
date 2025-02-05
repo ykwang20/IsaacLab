@@ -234,6 +234,11 @@ def stepped_terminated(env: ManagerBasedRLEnv) -> torch.Tensor:
     value=env.termination_manager.get_term('success').float()
     return value
 
+def air_terminated(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Penalize terminated episodes that don't correspond to episodic timeouts."""
+    value=env.termination_manager.get_term('on_air').float()
+    return value
+
 def body_on_air(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
     """Terminate when the contact force on the sensor exceeds the force threshold."""
     # extract the used quantities (to enable type-hinting)

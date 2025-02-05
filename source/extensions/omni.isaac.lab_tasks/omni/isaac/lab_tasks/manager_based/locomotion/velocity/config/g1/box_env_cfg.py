@@ -41,6 +41,7 @@ class G1Rewards:
 
     #termination_penalty = RewTerm(func=mdp.contact_terminated, weight=-200.0)
     success_rew = RewTerm(func=mdp.stepped_terminated, weight=20000)
+    #air_term_penalty = RewTerm(func=mdp.air_terminated, weight=-1000)
     #termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.)
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-6,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
@@ -132,7 +133,7 @@ class TerminationsCfg:
                       "platform_width": 3,"reached_distance": 0.06,} )
     on_air= DoneTerm(func=mdp.on_air,params={"sensor_cfg":
                                               SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), "threshold": 1.0})
-   
+
 BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     size=(8.0, 8.0),
     border_width=10.0,
@@ -213,6 +214,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         self.scene.robot = G1_29_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
+        self.scene.contact_forces.history_length = 16
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
         super().__post_init__()
         self.episode_length_s =10#20
