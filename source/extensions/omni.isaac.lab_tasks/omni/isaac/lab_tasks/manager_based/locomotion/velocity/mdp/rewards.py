@@ -223,6 +223,8 @@ def stable_at_target(env: ManagerBasedRLEnv, command_name: str, asset_cfg: Scene
 
 
 
+
+
 def contact_terminated(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Penalize terminated episodes that don't correspond to episodic timeouts."""
     value=env.termination_manager.get_term('base_contact').float()
