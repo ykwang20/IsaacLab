@@ -41,7 +41,7 @@ class G1Rewards:
 
     #termination_penalty = RewTerm(func=mdp.contact_terminated, weight=-200.0)
     success_rew = RewTerm(func=mdp.stepped_terminated, weight=20000)
-    #air_term_penalty = RewTerm(func=mdp.air_terminated, weight=-1000)
+    air_term_penalty = RewTerm(func=mdp.air_terminated, weight=-10000)
     #termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.)
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-6,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
