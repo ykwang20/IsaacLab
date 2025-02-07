@@ -55,6 +55,7 @@ class G1Rewards:
     contact_penalty=RewTerm(func=mdp.contact_forces, weight=-0.005,
                             params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), 
                                     "threshold": 650.0})
+    alive_reward=RewTerm(func=mdp.is_alive, weight=0.1)
     # air_penalty = RewTerm(func=mdp.body_on_air, weight=-10,params={"sensor_cfg": SceneEntityCfg("contact_forces",
     #                                         body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link", "torso_link","pelvis"]), "threshold": 1.0,})
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
@@ -131,8 +132,8 @@ class TerminationsCfg:
     # )
     success = DoneTerm(func=mdp.stepped_on,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"), "threshold": 1.0,
                       "platform_width": 3,"reached_distance": 0.06,} )
-    on_air= DoneTerm(func=mdp.on_air,params={"sensor_cfg":
-                                              SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), "threshold": 1.0})
+    # on_air= DoneTerm(func=mdp.on_air,params={"sensor_cfg":
+    #                                           SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), "threshold": 1.0})
 
 BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     size=(8.0, 8.0),
