@@ -17,6 +17,10 @@ import omni.isaac.lab.utils.math as math_utils
 from omni.isaac.lab.assets import Articulation
 from omni.isaac.lab.managers import CommandTerm
 from omni.isaac.lab.markers import VisualizationMarkers
+from omni.isaac.lab.sensors import ContactSensor
+from omni.isaac.lab.managers import SceneEntityCfg
+
+
 
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedEnv
@@ -71,6 +75,8 @@ class TargetCommand(CommandTerm):
         # # -- metrics
         # self.metrics["error_vel_xy"] = torch.zeros(self.num_envs, device=self.device)
         # self.metrics["error_vel_yaw"] = torch.zeros(self.num_envs, device=self.device)
+        self.metrics["consecutive_success"] = torch.zeros(self.num_envs, device=self.device)
+
 
     def __str__(self) -> str:
         """Return a string representation of the command generator."""
@@ -98,7 +104,24 @@ class TargetCommand(CommandTerm):
 
     def _update_metrics(self):
         # time for which the command was executed
-        pass
+        target_pos_w=self.target_command_e+self._env.scene.env_origins
+        target_pos_w[:,2]=0
+        
+        remaining_distance = torch.norm(target_pos_w[:, :2] - self.robot.data.root_pos_w[:, :2], dim=1)
+        near = remaining_distance < self.cfg.success_threshold
+
+        sensor_cfg=SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link", body_ids=[6,12])
+        contact_sensor: ContactSensor = self._env.scene.sensors[sensor_cfg.name]
+        net_contact_forces = contact_sensor.data.net_forces_w_history
+        contact=torch.all(torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] 
+                      > 1, dim=1)
+        
+        successes =torch.logical_and(near, contact)
+        #successes=near
+
+        self.metrics["consecutive_success"] += successes.float()
+
+        
 
     # def _resample_command(self, env_ids: Sequence[int]):
     #     num_envs = len(env_ids)

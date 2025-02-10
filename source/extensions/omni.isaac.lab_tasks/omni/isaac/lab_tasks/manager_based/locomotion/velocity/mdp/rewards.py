@@ -253,3 +253,26 @@ def body_on_air(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: f
     on_air = torch.logical_and(on_air, env.episode_length_buf>20)
     #print('on air:',on_air)
     return on_air
+
+def success_bonus(
+    env: ManagerBasedRLEnv,sensor_cfg: SceneEntityCfg, success_distance:float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+   
+    # extract the used quantities (to enable type-hinting) 
+    asset = env.scene[asset_cfg.name]
+   
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    contact=torch.all(torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > 1, dim=1)
+    target_pos_e = env.command_manager.get_command("target_pos_e")
+    target_pos_w=target_pos_e+env.scene.env_origins
+    target_pos_w[:,2]=0
+    
+    remaining_distance = torch.norm(target_pos_w[:, :2] - asset.data.root_pos_w[:, :2], dim=1)
+    # robots that walked far enough progress to harder terrains
+    near = remaining_distance < success_distance
+    
+    stepped=torch.logical_and(near, contact)
+    # print('near', near)
+    # print('contact', contact)
+    return stepped

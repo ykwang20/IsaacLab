@@ -40,9 +40,15 @@ class G1Rewards:
     move_in_direction = RewTerm(func=mdp.move_in_direction, weight=10.0,params={"command_name": "target_pos_e"})
 
     #termination_penalty = RewTerm(func=mdp.contact_terminated, weight=-200.0)
-    success_rew = RewTerm(func=mdp.stepped_terminated, weight=20000)
-    #air_term_penalty = RewTerm(func=mdp.air_terminated, weight=-10000)
+    #success_rew = RewTerm(func=mdp.stepped_terminated, weight=20000)
+    #air_term_penalty = RewTerm(func=mdp.air_terminated, weight=-1000)
     #termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.)
+    success_bonus = RewTerm(
+        func=mdp.success_bonus,
+        weight=400.0,
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
+        "success_distance": 0.06,}
+    )
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-6,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-1, params={"soft_ratio": 1., "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
@@ -101,6 +107,7 @@ class TargetCommandsCfg:
         resampling_time_range=(10.0, 10.0),
         radius_range=(2., 3.),
         debug_vis=True,
+        success_threshold=0.06,
     )
 
 
@@ -130,8 +137,11 @@ class TerminationsCfg:
     #     func=mdp.illegal_contact,
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},     
     # )
-    success = DoneTerm(func=mdp.stepped_on,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"), "threshold": 1.0,
-                      "platform_width": 3,"reached_distance": 0.06,} )
+    # success = DoneTerm(func=mdp.stepped_on,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"), "threshold": 1.0,
+    #                   "platform_width": 3,"reached_distance": 0.06,} )
+    max_consecutive_success = DoneTerm(
+        func=mdp.max_consecutive_success, params={"num_success": 50, }
+    )
     # on_air= DoneTerm(func=mdp.on_air,params={"sensor_cfg":
     #                                           SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), "threshold": 1.0})
 

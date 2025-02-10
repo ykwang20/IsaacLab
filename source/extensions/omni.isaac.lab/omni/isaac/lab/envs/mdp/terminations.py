@@ -93,7 +93,6 @@ def stepped_on(
     """
     # extract the used quantities (to enable type-hinting) 
     asset: RigidObject = env.scene[asset_cfg.name]
-    feet_ids = asset.find_bodies(".*_ankle_roll_link")[0]
     # high=torch.logical_and(asset.data.body_pos_w[:, feet_ids[0], 2]>0.02, asset.data.body_pos_w[:, feet_ids[1], 2]>0.02)
     # high = torch.logical_and(high, asset.data.root_link_pos_w[:, 2] > 0.2)
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
@@ -126,6 +125,21 @@ def on_air(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float)
     # print('contact', torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1))    
     # print('on_air', on_air)
     return on_air
+
+def max_consecutive_success(env: ManagerBasedRLEnv, num_success: int) -> torch.Tensor:
+    """Check if the task has been completed consecutively for a certain number of times.
+
+    Args:
+        env: The environment object.
+        num_success: Threshold for the number of consecutive successes required.
+        command_name: The command term to be used for extracting the goal.
+    """
+    
+    command_term = env.command_manager.get_term('target_pos_e')
+    consecutive_near=command_term.metrics["consecutive_success"] >= num_success
+
+    return consecutive_near
+
 
 """
 Joint terminations.

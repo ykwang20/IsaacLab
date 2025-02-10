@@ -39,6 +39,7 @@ class TargetCommandCfg(CommandTermCfg):
         prim_path="/Visuals/Command/target_pos"
     )
     target_visualizer_cfg.markers["arrow"].scale = (0.5, 0.5, 0.5)
+    success_threshold: float = 0.06
 
 @configclass
 class UniformVelocityCommandCfg(CommandTermCfg):
