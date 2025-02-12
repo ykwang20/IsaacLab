@@ -52,7 +52,7 @@ class G1Rewards:
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-6,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-1, params={"soft_ratio": 1., "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-    torque_lim_penalty=RewTerm(func=mdp.applied_torque_limits, weight=-0.002,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
+    #torque_lim_penalty=RewTerm(func=mdp.applied_torque_limits, weight=-0.002,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     joint_acc_penalty=RewTerm(func=mdp.joint_acc_l2, weight=-2e-7,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     base_acc_penalty=RewTerm(func=mdp.base_lin_ang_acc, weight=-0.01)
     feet_acc_penalty=RewTerm(func=mdp.feet_acc, weight=-0.0002)
@@ -68,13 +68,13 @@ class G1Rewards:
     #TODO: base vel
     base_vel_penalty=RewTerm(func=mdp.base_lin_ang_vel, weight=-0.01)
     body_height = RewTerm(func=mdp.body_height, weight=1.2)
-    action_rate_penalty=RewTerm(func=mdp.action_rate_l2, weight=-0.005)
+    action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.02,params={"action_name":"joint_pos"})
 
     #stand_at_target=RewTerm(func=mdp.stand_at_target, weight=-0.5,
     #                params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
     # stable_at_target=RewTerm(func=mdp.stable_at_target, weight=-0.5,
     #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
-    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.0001,
+    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,
                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # feet_air_time = RewTerm(
     #     func=mdp.feet_air_time_positive_biped,
@@ -212,12 +212,19 @@ class CurriculumCfg:
     terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
 
 @configclass
+class ActionsCfg:
+    """Action specifications for the MDP."""
+
+    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True)
+
+@configclass
 class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
     rewards: G1Rewards = G1Rewards()
     terminations: TerminationsCfg = TerminationsCfg()
     commands: TargetCommandsCfg = TargetCommandsCfg()
     observations: ObservationsCfg = ObservationsCfg()
     curriculum: TargetCurriculumCfg = TargetCurriculumCfg()
+    actions: ActionsCfg = ActionsCfg()
 
     def __post_init__(self):
         # post init of parent
