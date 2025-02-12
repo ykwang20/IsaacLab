@@ -75,6 +75,7 @@ class JointAction(ActionTerm):
         # create tensors for raw and processed actions
         self._raw_actions = torch.zeros(self.num_envs, self.action_dim, device=self.device)
         self._processed_actions = torch.zeros_like(self.raw_actions)
+        self.last_processed_actions = torch.zeros_like(self.raw_actions)
 
         # parse scale
         if isinstance(cfg.scale, (float, int)):
@@ -130,8 +131,10 @@ class JointAction(ActionTerm):
     def process_actions(self, actions: torch.Tensor):
         # store the raw actions
         self._raw_actions[:] = actions
+        self.last_processed_actions=self.processed_actions
         # apply the affine transformations
         self._processed_actions = self._raw_actions * self._scale + self._offset
+
         # clip actions
         if self.cfg.clip is not None:
             self._processed_actions = torch.clamp(
