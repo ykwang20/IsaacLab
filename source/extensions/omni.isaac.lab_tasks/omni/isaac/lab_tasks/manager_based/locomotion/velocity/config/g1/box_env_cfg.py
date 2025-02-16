@@ -45,7 +45,7 @@ class G1Rewards:
     #termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.)
     success_bonus = RewTerm(
         func=mdp.success_bonus,
-        weight=400.0,
+        weight=20000,#400.0,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
         "success_distance": 0.06,}
     )
@@ -74,7 +74,7 @@ class G1Rewards:
     #                params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
     # stable_at_target=RewTerm(func=mdp.stable_at_target, weight=-0.5,
     #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
-    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,
+    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#weight=-0.05,
                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # feet_air_time = RewTerm(
     #     func=mdp.feet_air_time_positive_biped,
@@ -140,7 +140,7 @@ class TerminationsCfg:
     # success = DoneTerm(func=mdp.stepped_on,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"), "threshold": 1.0,
     #                   "platform_width": 3,"reached_distance": 0.06,} )
     max_consecutive_success = DoneTerm(
-        func=mdp.max_consecutive_success, params={"num_success": 50, }
+        func=mdp.max_consecutive_success, params={"num_success": 1,}#50, }
     )
     # on_air= DoneTerm(func=mdp.on_air,params={"sensor_cfg":
     #                                           SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), "threshold": 1.0})
@@ -235,7 +235,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.contact_forces.history_length = 16
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
         super().__post_init__()
-        self.episode_length_s =10#20
+        self.episode_length_s =5#10#20
         # Randomization
         self.events.push_robot = None
         self.events.add_base_mass = None
