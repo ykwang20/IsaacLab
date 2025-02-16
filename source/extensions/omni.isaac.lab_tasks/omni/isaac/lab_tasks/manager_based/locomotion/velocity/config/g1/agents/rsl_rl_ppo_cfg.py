@@ -14,7 +14,7 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
 @configclass
 class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 19000#3000
+    max_iterations = 29000#19000#3000
     save_interval = 500#50
     experiment_name = "g1_box"
     empirical_normalization = False

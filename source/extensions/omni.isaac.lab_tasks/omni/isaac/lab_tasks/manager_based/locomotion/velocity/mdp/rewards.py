@@ -197,6 +197,7 @@ def body_height(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityC
     """Penalize the acceleration of the feet using L2-kernel."""
     # extract the used quantities (to enable type-hinting)
     asset = env.scene[asset_cfg.name]
+    print('body height',asset.data.root_link_pos_w[:, 2])
     return asset.data.root_link_pos_w[:, 2]
 
 def stand_at_target(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),) -> torch.Tensor:
