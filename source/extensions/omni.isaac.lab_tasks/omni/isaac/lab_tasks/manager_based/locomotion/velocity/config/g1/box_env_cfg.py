@@ -67,6 +67,7 @@ class G1Rewards:
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
     #TODO: base vel
     base_vel_penalty=RewTerm(func=mdp.base_lin_ang_vel, weight=-0.01)
+    power_penalty=RewTerm(func=mdp.power_consumption, weight=-0.0001)
     #body_height = RewTerm(func=mdp.body_height, weight=1.2)
     action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.02,params={"action_name":"joint_pos"})
 
