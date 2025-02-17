@@ -67,7 +67,7 @@ class G1Rewards:
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
     #TODO: base vel
     base_vel_penalty=RewTerm(func=mdp.base_lin_ang_vel, weight=-0.01)
-    power_penalty=RewTerm(func=mdp.power_consumption, weight=-0.0001)
+    #power_penalty=RewTerm(func=mdp.power_consumption, weight=-0.0001)
     #body_height = RewTerm(func=mdp.body_height, weight=1.2)
     action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.02,params={"action_name":"joint_pos"})
 
@@ -75,7 +75,7 @@ class G1Rewards:
     #                params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
     # stable_at_target=RewTerm(func=mdp.stable_at_target, weight=-0.5,
     #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
-    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#weight=-0.05,
+    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,#weight=-0.05,
                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # feet_air_time = RewTerm(
     #     func=mdp.feet_air_time_positive_biped,
