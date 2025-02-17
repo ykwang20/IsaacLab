@@ -34,9 +34,9 @@ class G1Rewards:
     # -- task
     #track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)})
     #track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_exp, weight=1.5, params={"command_name": "base_velocity", "std": math.sqrt(0.25)})
-    position_tracking = RewTerm(func=mdp.position_tracking, weight=10.,
+    position_tracking = RewTerm(func=mdp.position_tracking, weight=15.,
                                   params={"command_name": "target_pos_e"})
-    wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-1,params={"command_name": "target_pos_e"})
+    wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-2,params={"command_name": "target_pos_e"})
     move_in_direction = RewTerm(func=mdp.move_in_direction, weight=10.0,params={"command_name": "target_pos_e"})
 
     #termination_penalty = RewTerm(func=mdp.contact_terminated, weight=-200.0)
@@ -45,7 +45,7 @@ class G1Rewards:
     #termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.)
     success_bonus = RewTerm(
         func=mdp.success_bonus,
-        weight=20000,#400.0,
+        weight=10000,#400.0,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
         "success_distance": 0.06,}
     )
@@ -158,7 +158,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.3, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -235,7 +235,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.contact_forces.history_length = 16
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
         super().__post_init__()
-        self.episode_length_s =10#20
+        self.episode_length_s =5#10#20
         # Randomization
         self.events.push_robot = None
         self.events.add_base_mass = None

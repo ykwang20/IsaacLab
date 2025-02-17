@@ -130,7 +130,7 @@ def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityC
     pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
                            +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
     
-    return torch.where(torch.logical_and(norm_vel<0.2, pos_error>0.2),
+    return torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),
                        torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
 
 def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -143,7 +143,9 @@ def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = Scene
     target_pos_w[:,2]=0
     direction=target_pos_w-asset.data.root_pos_w
     vel=asset.data.root_lin_vel_w
-    return torch.cosine_similarity(direction[:,:2],vel[:,:2],dim=1)
+    raw_reward=torch.cosine_similarity(direction[:,:3],vel[:,:3],dim=1)
+    condition=torch.logical_and(torch.norm(vel)<0.1,raw_reward>0)
+    return torch.where(condition,torch.zeros_like(raw_reward),raw_reward)
 
 def joint_velocity_limits(
     env: ManagerBasedRLEnv, soft_ratio: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
