@@ -37,7 +37,7 @@ class G1Rewards:
     position_tracking = RewTerm(func=mdp.position_tracking, weight=10.,
                                   params={"command_name": "target_pos_e"})
     wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-1,params={"command_name": "target_pos_e"})
-    move_in_direction = RewTerm(func=mdp.move_in_direction, weight=10.0,params={"command_name": "target_pos_e"})
+    move_in_direction = RewTerm(func=mdp.move_in_direction, weight=500.0,params={"command_name": "target_pos_e"})
 
     #termination_penalty = RewTerm(func=mdp.contact_terminated, weight=-200.0)
     #success_rew = RewTerm(func=mdp.stepped_terminated, weight=20000)
@@ -97,6 +97,12 @@ class G1Rewards:
 # class RoughRewards:
 
     
+@configclass
+class G1SafetyRewards:
+    """Reward terms for the MDP."""
+    safety_reward = RewTerm(func=mdp.safety, weight=1,
+        params = {"sensor_cfg": SceneEntityCfg(name="contact_forces", body_names=["torso_link"]), "threshold": 500.0}                    
+    )
 
 @configclass
 class TargetCommandsCfg:
@@ -260,6 +266,47 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
 
 
 
+@configclass
+class G1BoxEnvSafetyCfg(LocomotionVelocityRoughEnvCfg):
+    rewards: G1SafetyRewards = G1SafetyRewards()
+    terminations: TerminationsCfg = TerminationsCfg()
+    commands: TargetCommandsCfg = TargetCommandsCfg()
+    observations: ObservationsCfg = ObservationsCfg()
+    curriculum: TargetCurriculumCfg = TargetCurriculumCfg()
+    actions: ActionsCfg = ActionsCfg()
+
+    def __post_init__(self):
+        # post init of parent
+        # Scene
+
+        self.scene.robot = G1_29_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
+        self.scene.contact_forces.history_length = 16
+        self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
+        super().__post_init__()
+        self.episode_length_s =10#20
+        # Randomization
+        self.events.push_robot = None
+        self.events.add_base_mass = None
+        self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
+        self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
+        self.events.reset_base.params = {
+            "pose_range": {"x": (1.35, 1.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
+            #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
+            "velocity_range": {
+                "x": (0.0, 0.0),
+                "y": (0.0, 0.0),
+                "z": (0.0, 0.0),
+                "roll": (0.0, 0.0),
+                "pitch": (0.0, 0.0),
+                "yaw": (0.0, 0.0),
+            },
+        }
+
+        # self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 40
+        self.sim.physx.gpu_temp_buffer_capacity = 167772160
+        self.sim.physx.gpu_max_rigid_patch_count = 327680
+        self.scene.num_envs = 1024
 
 @configclass
 class G1BoxEnvCfg_Play(G1BoxEnvCfg):

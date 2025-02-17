@@ -40,6 +40,58 @@ class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     )
    
 
+
+
+@configclass
+class SafetyNetCfg:
+    hidden_dims=[512, 256, 128]
+    activation = 'crelu'   # or 'tanh'
+
+@configclass
+class SafetyLearnerCfg:
+    learning_rate = 5.0e-4
+    gamma = 0.999    # better approximation for value
+    max_grad_norm = 1.0
+    value_clip_param = 1.0
+    num_learning_epochs=1
+    num_mini_batches=64    # small batch size for IID
+
+@configclass
+class SafetyValueCfg:
+    net_cfg = SafetyNetCfg()
+    alg_cfg = SafetyLearnerCfg()
+    
+@configclass
+class G1BoxPPORunnerSafetyCfg(RslRlOnPolicyRunnerCfg):
+    num_steps_per_env = 128  #128 (use long trajectory for distribution coverage)
+    max_iterations = 100 #19000#3000
+    save_interval = 5   #50
+    experiment_name = "g1_box_safety_value"
+    empirical_normalization = False
+    policy = RslRlPpoActorCriticCfg(
+        init_noise_std=1.0,
+        actor_hidden_dims=[512, 256, 128],
+        critic_hidden_dims=[512, 256, 128],
+        activation="elu",
+    )
+    algorithm = RslRlPpoAlgorithmCfg(
+        value_loss_coef=1.0,
+        use_clipped_value_loss=True,
+        clip_param=0.2,
+        entropy_coef=0.008,
+        num_learning_epochs=5,
+        num_mini_batches=4,
+        learning_rate=1.0e-3,
+        schedule="adaptive",
+        gamma=0.99,
+        lam=0.95,
+        desired_kl=0.01,
+        max_grad_norm=1.0,
+    )
+    safety_value_cfg = SafetyValueCfg()
+
+
+
 @configclass
 class G1TargetPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24

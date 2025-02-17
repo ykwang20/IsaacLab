@@ -276,3 +276,21 @@ def success_bonus(
     # print('near', near)
     # print('contact', contact)
     return stepped
+
+
+def safety(
+        env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float
+) -> torch.Tensor:
+    """safety marginal function. Penalize unsafe contact force
+            return: -2 * contact_violation + 1
+    """
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    # compute the violation
+    violation = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] - threshold
+    # compute the penalty
+    #print("VIOLATION: ", violation.clip(min=0.0))
+    violation = torch.sum(violation.clip(min=0.0), dim=1)
+    violation = torch.clamp(violation, 0.0, 1.0) 
+    return -2 * violation + 1

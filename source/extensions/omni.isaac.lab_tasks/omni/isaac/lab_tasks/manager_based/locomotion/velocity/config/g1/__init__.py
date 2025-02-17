@@ -34,6 +34,16 @@ gym.register(
 )
 
 gym.register(
+    id="Isaac-Box-G1-Safety-Value",
+    entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.box_env_cfg:G1BoxEnvSafetyCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1BoxPPORunnerSafetyCfg",
+    },
+)
+
+gym.register(
     id="Isaac-Box-G1-Play",
     entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
