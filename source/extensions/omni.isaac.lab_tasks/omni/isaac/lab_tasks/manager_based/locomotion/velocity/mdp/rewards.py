@@ -244,18 +244,25 @@ def air_terminated(env: ManagerBasedRLEnv) -> torch.Tensor:
     value=env.termination_manager.get_term('on_air').float()
     return value
 
-def body_on_air(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
+def body_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
     """Terminate when the contact force on the sensor exceeds the force threshold."""
     # extract the used quantities (to enable type-hinting)
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    net_contact_forces = contact_sensor.data.net_forces_w_history
-    # check if any contact force exceeds the threshold
-    on_air=~torch.any(
-        torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold, dim=1
-    )
-    on_air = torch.logical_and(on_air, env.episode_length_buf>20)
-    #print('on air:',on_air)
-    return on_air
+    bodies_air_time=contact_sensor.data.current_air_time[:, sensor_cfg.body_ids]
+    air_time=bodies_air_time.min(dim=1)[0]
+    # print('body ids:',sensor_cfg.body_ids)
+    # print('bodies air time:',bodies_air_time)
+    # print('air time:',air_time)
+    # print('reward:',torch.exp(10*air_time)-1)
+    return torch.exp(10*air_time)-1
+    # net_contact_forces = contact_sensor.data.net_forces_w_history
+    # # check if any contact force exceeds the threshold
+    # on_air=~torch.any(
+    #     torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold, dim=1
+    # )
+    # on_air = torch.logical_and(on_air, env.episode_length_buf>20)
+    # #print('on air:',on_air)
+    # return on_air
 
 def success_bonus(
     env: ManagerBasedRLEnv,sensor_cfg: SceneEntityCfg, success_distance:float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")

@@ -62,12 +62,12 @@ class G1Rewards:
                             params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), 
                                     "threshold": 650.0})
     alive_reward=RewTerm(func=mdp.is_alive, weight=100)
-    # air_penalty = RewTerm(func=mdp.body_on_air, weight=-10,params={"sensor_cfg": SceneEntityCfg("contact_forces",
-    #                                         body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link", "torso_link","pelvis"]), "threshold": 1.0,})
+    air_penalty = RewTerm(func=mdp.body_air_time, weight=-10,params={"sensor_cfg": SceneEntityCfg("contact_forces",
+                                             body_names=[ ".*"]), "threshold": 1.0,})
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
     #TODO: base vel
     base_vel_penalty=RewTerm(func=mdp.base_lin_ang_vel, weight=-0.01)
-    #power_penalty=RewTerm(func=mdp.power_consumption, weight=-0.0001)
+    power_penalty=RewTerm(func=mdp.power_consumption, weight=-0.0001)
     #body_height = RewTerm(func=mdp.body_height, weight=1.2)
     action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.02,params={"action_name":"joint_pos"})
 
@@ -233,7 +233,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         self.scene.robot = G1_29_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
-        self.scene.contact_forces.history_length = 16
+        #self.scene.contact_forces.history_length = 16
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
         super().__post_init__()
         self.episode_length_s =5#10#20
@@ -272,7 +272,7 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
         # make a smaller scene for play
         self.scene.num_envs = 10
         self.scene.env_spacing = 2.5
-        self.episode_length_s = 10.0
+        self.episode_length_s = 5#10.0
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
         # reduce the number of terrains to save memory
