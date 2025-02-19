@@ -24,8 +24,9 @@
 
 # Docker/Singularity
 **/*.sif
-docker/cluster/exports/
-docker/.container.cfg
+# docker/cluster/exports/
+# docker/.container.cfg
+docker/
 
 # IDE
 **/.idea/
