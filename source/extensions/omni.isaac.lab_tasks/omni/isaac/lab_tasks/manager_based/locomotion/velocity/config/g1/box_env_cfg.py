@@ -62,8 +62,8 @@ class G1Rewards:
                             params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), 
                                     "threshold": 650.0})
     alive_reward=RewTerm(func=mdp.is_alive, weight=100)
-    # air_penalty = RewTerm(func=mdp.body_on_air, weight=-10,params={"sensor_cfg": SceneEntityCfg("contact_forces",
-    #                                         body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link", "torso_link","pelvis"]), "threshold": 1.0,})
+    air_penalty = RewTerm(func=mdp.body_air_time, weight=-10,params={"sensor_cfg": SceneEntityCfg("contact_forces",
+                                             body_names=[ ".*"]), "threshold": 1.0,})
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
     #TODO: base vel
     base_vel_penalty=RewTerm(func=mdp.base_lin_ang_vel, weight=-0.01)
@@ -75,7 +75,7 @@ class G1Rewards:
     #                params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
     # stable_at_target=RewTerm(func=mdp.stable_at_target, weight=-0.5,
     #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
-    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#weight=-0.05,
+    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,#weight=-0.05,
                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # feet_air_time = RewTerm(
     #     func=mdp.feet_air_time_positive_biped,
@@ -233,7 +233,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         self.scene.robot = G1_29_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
-        self.scene.contact_forces.history_length = 16
+        #self.scene.contact_forces.history_length = 16
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
         super().__post_init__()
         self.episode_length_s =5#10#20
@@ -272,7 +272,7 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
         # make a smaller scene for play
         self.scene.num_envs = 10
         self.scene.env_spacing = 2.5
-        self.episode_length_s = 10.0
+        self.episode_length_s = 5#10.0
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
         # reduce the number of terrains to save memory
