@@ -252,8 +252,8 @@ def body_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold:
     air_time=bodies_air_time.min(dim=1)[0]
     # print('body ids:',sensor_cfg.body_ids)
     # print('bodies air time:',bodies_air_time)
-    print('air time:',air_time)
-    print('reward:',torch.exp(20*air_time)-1)
+    # print('air time:',air_time)
+    # print('reward:',torch.exp(20*air_time)-1)
     return torch.exp(10*air_time)-1
     # net_contact_forces = contact_sensor.data.net_forces_w_history
     # # check if any contact force exceeds the threshold
