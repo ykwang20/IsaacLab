@@ -159,7 +159,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.3, 0.8), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.8, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -235,6 +235,8 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         #self.scene.contact_forces.history_length = 16
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
+        self.scene.terrain.physics_material.dynamic_friction = 2.
+        self.scene.terrain.physics_material.static_friction = 2.
         super().__post_init__()
         self.episode_length_s =5#10#20
         # Randomization
