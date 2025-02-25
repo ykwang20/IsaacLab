@@ -64,7 +64,7 @@ class G1Rewards:
     #                                 "threshold": 650.0})
     contact_exp_penalty=RewTerm(func=mdp.contact_forces_exp, weight=-1,
                             params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), 
-                                    "threshold": 500.0})
+                                    "threshold": 500.0,"grad_scale":0.0025})
     alive_reward=RewTerm(func=mdp.is_alive, weight=100)
     air_penalty = RewTerm(func=mdp.body_air_time, weight=-10,params={"sensor_cfg": SceneEntityCfg("contact_forces",
                                              body_names=[ ".*"]), "threshold": 1.0,})
