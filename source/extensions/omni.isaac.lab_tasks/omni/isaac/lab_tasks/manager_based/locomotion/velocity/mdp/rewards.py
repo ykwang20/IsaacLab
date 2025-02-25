@@ -144,6 +144,7 @@ def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = Scene
     direction=target_pos_w-asset.data.root_pos_w
     vel=asset.data.root_lin_vel_w
     raw_reward=torch.cosine_similarity(direction[:,:3],vel[:,:3],dim=1)
+    #print('raw reward:',raw_reward)
     condition=torch.logical_and(torch.norm(vel)<0.1,raw_reward>0)
     return torch.where(condition,torch.zeros_like(raw_reward),raw_reward)
 

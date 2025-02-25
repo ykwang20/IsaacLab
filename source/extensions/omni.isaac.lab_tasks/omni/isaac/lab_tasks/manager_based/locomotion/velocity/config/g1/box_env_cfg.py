@@ -37,7 +37,7 @@ class G1Rewards:
     position_tracking = RewTerm(func=mdp.position_tracking, weight=15.,
                                   params={"command_name": "target_pos_e"})
     wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-2,params={"command_name": "target_pos_e"})
-    move_in_direction = RewTerm(func=mdp.move_in_direction, weight=10.0,params={"command_name": "target_pos_e"})
+    move_in_direction = RewTerm(func=mdp.move_in_direction, weight=5.0,params={"command_name": "target_pos_e"})
 
     #termination_penalty = RewTerm(func=mdp.contact_terminated, weight=-200.0)
     #success_rew = RewTerm(func=mdp.stepped_terminated, weight=20000)
@@ -50,7 +50,8 @@ class G1Rewards:
         "success_distance": 0.06,}
     )
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
-    torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-6,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+   #torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-6,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-5,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-1, params={"soft_ratio": 1., "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     #torque_lim_penalty=RewTerm(func=mdp.applied_torque_limits, weight=-0.002,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     joint_acc_penalty=RewTerm(func=mdp.joint_acc_l2, weight=-2e-7,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
@@ -60,6 +61,7 @@ class G1Rewards:
                                             body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"])})
     contact_penalty=RewTerm(func=mdp.contact_forces, weight=-1,
                             params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), 
+                                    "threshold": 500.0})
                                     "threshold": 500.0})
     alive_reward=RewTerm(func=mdp.is_alive, weight=100)
     air_penalty = RewTerm(func=mdp.body_air_time, weight=-10,params={"sensor_cfg": SceneEntityCfg("contact_forces",
@@ -160,6 +162,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     use_cache=False,
     sub_terrains={
         "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.3, 0.8), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.3, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -235,8 +238,8 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         #self.scene.contact_forces.history_length = 16
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
-        self.scene.terrain.physics_material.dynamic_friction = 2.
-        self.scene.terrain.physics_material.static_friction = 2.
+        # self.scene.terrain.physics_material.dynamic_friction = 2.
+        # self.scene.terrain.physics_material.static_friction = 2.
         super().__post_init__()
         self.episode_length_s =5#10#20
         # Randomization
