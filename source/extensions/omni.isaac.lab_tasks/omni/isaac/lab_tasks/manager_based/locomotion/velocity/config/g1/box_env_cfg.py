@@ -98,7 +98,7 @@ class G1Rewards:
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},
     # )
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
-    curiosity = RewTerm(func=mdp.curiosity, weight=1)
+    curiosity = RewTerm(func=mdp.curiosity, weight=10)
 
 # @configclass
 # class RoughRewards:
@@ -167,7 +167,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.5, 0.8), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -193,7 +193,7 @@ class ObservationsCfg:
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.05, n_max=0.05))
         actions = ObsTerm(func=mdp.last_processed_action,params={"action_name":"joint_pos"})
         box_height = ObsTerm(func=mdp.box_height, noise=Unoise(n_min=-0.01, n_max=0.01))
-        #time = ObsTerm(func=mdp.time)
+        time = ObsTerm(func=mdp.time)
         height_scan = ObsTerm(
             func=mdp.height_scan,
             params={"sensor_cfg": SceneEntityCfg("height_scanner")},
@@ -256,7 +256,7 @@ class CuriosityCfg:
     pred_dim = 16
     lr= 2e-4
     obs_lb = [-2,-2,-2,-4,-4,-4]+[-0.1,-0.2,-0.4]+[-1,-1,-1,-1]+ [-1 for _ in range(29)]+[0 for _ in range(12)]
-    obs_ub =[2,2,2,4,4,4]+[1.8,0.2,0.]+[1,1,1,1]+[-1 for _ in range(29)]+[1200 for _ in range(12)]
+    obs_ub =[2,2,2,4,4,4]+[1.8,0.2,0.]+[1,1,1,1]+[1 for _ in range(29)]+[1200 for _ in range(12)]
 
 @configclass
 class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):

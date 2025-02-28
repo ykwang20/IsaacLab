@@ -107,10 +107,24 @@ class RNDCuriosity:
         for param in self.rnd_target.parameters(): param.requires_grad = False
         self.optimizer = torch.optim.SGD(self.rnd_pred.parameters(), lr=cfg.curiosity.lr)
         
-    def update_curiosity(self, _obs:torch.Tensor)-> torch.Tensor:
+    def normalize(self, obs):
+        epsilon = 1e-6
+        range_check = (self.obs_ub - self.obs_lb)
+        if (range_check < epsilon).any():
+            print("Warning: Some dimensions have very small ranges, might cause division by zero")
+        
+        obs_ = obs.clip(min=self.obs_lb, max=self.obs_ub)
+        obs_ = (obs_ - self.obs_lb) / (range_check + epsilon)
+        assert ((obs_ >=0 ) & (obs_ <= 1.0 )).all(), "Normalized values outside expected range [-1, 1]"
+
+        
+        return obs_
+    
+    def update_curiosity(self, obs:torch.Tensor)-> torch.Tensor:
         # obs: (n_env, n_obs)
-        obs = _obs.clip(min=self.obs_lb, max=self.obs_ub)
-        obs = (obs-self.obs_lb) / (self.obs_ub - self.obs_lb)  
+
+        #obs = _obs.detach()
+        obs = self.normalize(obs)
         pred = self.rnd_pred(obs)
         target = self.rnd_target(obs)
         rew = torch.norm(pred - target, dim=-1)
