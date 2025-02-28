@@ -64,6 +64,10 @@ def root_pos_w(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg(
     asset: RigidObject = env.scene[asset_cfg.name]
     return asset.data.root_link_pos_w - env.scene.env_origins
 
+def root_pos_target(env: ManagerBasedEnv, command_name:str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset: RigidObject = env.scene[asset_cfg.name]
+    return (env.command_manager.get_command(command_name)
+                            +env.scene.env_origins-asset.data.root_pos_w)
 
 def root_quat_w(
     env: ManagerBasedEnv, make_quat_unique: bool = False, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")

@@ -98,7 +98,7 @@ class G1Rewards:
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},
     # )
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
-    curiosity = RewTerm(func=mdp.curiosity, weight=0.1)
+    curiosity = RewTerm(func=mdp.curiosity, weight=1)
 
 # @configclass
 # class RoughRewards:
@@ -193,7 +193,7 @@ class ObservationsCfg:
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.05, n_max=0.05))
         actions = ObsTerm(func=mdp.last_processed_action,params={"action_name":"joint_pos"})
         box_height = ObsTerm(func=mdp.box_height, noise=Unoise(n_min=-0.01, n_max=0.01))
-        time = ObsTerm(func=mdp.time)
+        #time = ObsTerm(func=mdp.time)
         height_scan = ObsTerm(
             func=mdp.height_scan,
             params={"sensor_cfg": SceneEntityCfg("height_scanner")},
@@ -213,11 +213,11 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
-        base_lin_vel = ObsTerm(func=mdp.base_lin_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        base_pos = ObsTerm(func=mdp.root_pos_w)
+        base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
+        base_pos = ObsTerm(func=mdp.root_pos_target,params={"command_name": "target_pos_e"})
         base_quat = ObsTerm(func=mdp.root_quat_w)
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_pos = ObsTerm(func=mdp.joint_pos_limit_normalized)
         contact_forces = ObsTerm(func=mdp.body_contact_forces, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"])} )
 
 
@@ -255,6 +255,8 @@ class CuriosityCfg:
     hidden_sizes_target = [256,128]
     pred_dim = 16
     lr= 2e-4
+    obs_lb = [-2,-2,-2,-4,-4,-4]+[-0.1,-0.2,-0.4]+[-1,-1,-1,-1]+ [-1 for _ in range(29)]+[0 for _ in range(12)]
+    obs_ub =[2,2,2,4,4,4]+[1.8,0.2,0.]+[1,1,1,1]+[-1 for _ in range(29)]+[1200 for _ in range(12)]
 
 @configclass
 class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):

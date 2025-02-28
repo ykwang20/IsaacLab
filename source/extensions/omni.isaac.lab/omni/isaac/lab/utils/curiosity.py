@@ -100,14 +100,17 @@ class RNDCuriosity:
     def __init__(self, cfg, device):
         self.cfg = cfg
         self.device = device
-        
+        self.obs_lb = torch.Tensor(cfg.curiosity.obs_lb).unsqueeze(0).to(device)
+        self.obs_ub = torch.Tensor(cfg.curiosity.obs_ub).unsqueeze(0).to(device)
         self.rnd_pred = RNDNN(cfg.curiosity.obs_dim, cfg.curiosity.hidden_sizes_pred, cfg.curiosity.pred_dim).to(device)
         self.rnd_target = RNDNN(cfg.curiosity.obs_dim, cfg.curiosity.hidden_sizes_target, cfg.curiosity.pred_dim).to(device)
         for param in self.rnd_target.parameters(): param.requires_grad = False
         self.optimizer = torch.optim.SGD(self.rnd_pred.parameters(), lr=cfg.curiosity.lr)
         
-    def update_curiosity(self, obs:torch.Tensor)-> torch.Tensor:
+    def update_curiosity(self, _obs:torch.Tensor)-> torch.Tensor:
         # obs: (n_env, n_obs)
+        obs = _obs.clip(min=self.obs_lb, max=self.obs_ub)
+        obs = (obs-self.obs_lb) / (self.obs_ub - self.obs_lb)  
         pred = self.rnd_pred(obs)
         target = self.rnd_target(obs)
         rew = torch.norm(pred - target, dim=-1)

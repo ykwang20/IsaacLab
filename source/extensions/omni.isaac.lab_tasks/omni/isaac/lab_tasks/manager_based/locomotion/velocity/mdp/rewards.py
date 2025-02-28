@@ -182,7 +182,8 @@ def base_lin_ang_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
 
 def base_lin_ang_vel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     asset=env.scene[asset_cfg.name]
-    #print('base lin vel:',torch.norm(asset.data.root_com_lin_vel_b[:, :],dim=-1))
+    # print('base lin vel:',torch.norm(asset.data.root_com_lin_vel_b[:, :],dim=-1))
+    # print('base ang vel:',torch.norm(asset.data.root_com_ang_vel_b[:, :],dim=-1))
     return torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)+0.02*torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)
 
 def feet_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
