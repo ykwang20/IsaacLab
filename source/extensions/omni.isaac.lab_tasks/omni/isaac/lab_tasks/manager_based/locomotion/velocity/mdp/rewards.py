@@ -107,10 +107,12 @@ def track_ang_vel_z_world_exp(
     )
     return torch.exp(-ang_vel_error / std**2)
 
-def position_tracking(env, command_name: str,  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+def position_tracking(env, command_name: str,  target_time: float,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Reward tracking of position in the world frame using exponential kernel."""
     # extract the used quantities (to enable type-hinting)
     asset = env.scene[asset_cfg.name]
+    episode_time=env.episode_length_buf * env.step_dt
+    #print('episode step:',episode_time)
     # pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
     #                        +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
     #return 1-0.5*pos_error
@@ -119,7 +121,8 @@ def position_tracking(env, command_name: str,  asset_cfg: SceneEntityCfg = Scene
     # print('pos command:',env.command_manager.get_command(command_name)[:, :2])
     # print('pos robot:',asset.data.root_pos_w[:, :2]-env.scene.env_origins[:,:2])
     # print('pos error square',pos_error_square)
-    return 1/(1+pos_error_square)
+    #print('pos error rew',torch.where(episode_time>2,1/(1+pos_error_square),torch.zeros_like(pos_error_square)))
+    return torch.where(episode_time>2,1/(1+pos_error_square),torch.zeros_like(pos_error_square))
     
 
 def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -173,11 +176,13 @@ def base_lin_ang_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     """Penalize the linear acceleration of bodies using L2-kernel."""
     asset=env.scene[asset_cfg.name]
     root_id=asset.find_bodies("torso_link")[0]
+    
     return (torch.sum(torch.square(asset.data.body_lin_acc_w[:, root_id,:]), dim=-1).squeeze(-1)
             +0.02*torch.sum(torch.square(asset.data.body_ang_acc_w[:,root_id, :]), dim=-1).squeeze(-1))
 
 def base_lin_ang_vel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     asset=env.scene[asset_cfg.name]
+    #print('base lin vel:',torch.norm(asset.data.root_com_lin_vel_b[:, :],dim=-1))
     return torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)+0.02*torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)
 
 def feet_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -281,9 +286,16 @@ def success_bonus(
     
     remaining_distance = torch.norm(target_pos_w[:, :2] - asset.data.root_pos_w[:, :2], dim=1)
     # robots that walked far enough progress to harder terrains
+    #print('remaining distance:',remaining_distance)
     near = remaining_distance < success_distance
     
     stepped=torch.logical_and(near, contact)
     # print('near', near)
     # print('contact', contact)
     return stepped
+
+
+def curiosity(env: ManagerBasedRLEnv):
+    curio_obs = env.obs_buf['curiosity']
+    assert curio_obs.shape[1] == env.cfg.curiosity.obs_dim
+    return env.curiosity_handler.update_curiosity(curio_obs)

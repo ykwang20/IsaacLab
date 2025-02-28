@@ -21,6 +21,8 @@ from omni.isaac.lab.ui.widgets import ManagerLiveVisualizer
 from .common import VecEnvStepReturn
 from .manager_based_env import ManagerBasedEnv
 from .manager_based_rl_env_cfg import ManagerBasedRLEnvCfg
+from omni.isaac.lab.utils.curiosity import NHashCuriosity, RNDCuriosity
+
 
 
 class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
@@ -73,7 +75,14 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
                 is similar to ``"human"``.
         """
         # initialize the base class to setup the scene.
+        
+
         super().__init__(cfg=cfg)
+        if hasattr(cfg, "curiosity"):
+            print("***************************************************8curiousity")
+            if cfg.curiosity.use_curiosity:
+                print("***************************************************using curiousity")
+                self.curiosity_handler = RNDCuriosity(cfg, self.device)
         # store the render mode
         self.render_mode = render_mode
 
@@ -84,6 +93,7 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         self.episode_length_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         # -- set the framerate of the gym video recorder wrapper so that the playback speed of the produced video matches the simulation
         self.metadata["render_fps"] = 1 / self.step_dt
+        
 
         print("[INFO]: Completed setting up the environment...")
 

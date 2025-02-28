@@ -140,6 +140,17 @@ def max_consecutive_success(env: ManagerBasedRLEnv, num_success: int) -> torch.T
 
     return consecutive_near
 
+def max_contact_force(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalize contact forces as the amount of violations of the net contact force."""
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    # compute the violation
+    #threshold = 0
+    max_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0]
+    max_contact = torch.max(max_contact,dim=1)[0]
+    return max_contact > threshold
+
 
 """
 Joint terminations.

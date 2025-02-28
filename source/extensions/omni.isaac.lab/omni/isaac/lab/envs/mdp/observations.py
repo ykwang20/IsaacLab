@@ -233,6 +233,20 @@ def imu_lin_acc(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg
 def box_height(env: ManagerBasedEnv) -> torch.Tensor:
     return (0-env.scene.env_origins[:, 2]).unsqueeze(-1)
 
+def time(env: ManagerBasedEnv) -> torch.Tensor:
+    if hasattr(env, "episode_length_buf"):
+        return (env.episode_length_buf * env.step_dt).unsqueeze(-1)
+    else:
+        return torch.zeros(env.num_envs,1, device=env.device)
+    
+def body_contact_forces(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalize contact forces as the amount of violations of the net contact force."""
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    # compute the violation    
+    return torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0]
+
 def image(
     env: ManagerBasedEnv,
     sensor_cfg: SceneEntityCfg = SceneEntityCfg("tiled_camera"),
