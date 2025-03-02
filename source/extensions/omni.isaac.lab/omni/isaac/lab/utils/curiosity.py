@@ -105,6 +105,7 @@ class RNDCuriosity:
         self.rnd_pred = RNDNN(cfg.curiosity.obs_dim, cfg.curiosity.hidden_sizes_pred, cfg.curiosity.pred_dim).to(device)
         self.rnd_target = RNDNN(cfg.curiosity.obs_dim, cfg.curiosity.hidden_sizes_target, cfg.curiosity.pred_dim).to(device)
         for param in self.rnd_target.parameters(): param.requires_grad = False
+        #for param in self.rnd_pred.parameters(): param.requires_grad = False
         self.optimizer = torch.optim.SGD(self.rnd_pred.parameters(), lr=cfg.curiosity.lr)
         #self.optimizer=torch.optim.Adam(self.rnd_pred.parameters(), lr=cfg.curiosity.lr)
         
@@ -124,15 +125,19 @@ class RNDCuriosity:
     def update_curiosity(self, obs:torch.Tensor)-> torch.Tensor:
         # obs: (n_env, n_obs)
 
-        #obs = _obs.detach()
+        obs = obs.detach()
         #print("curio obs", obs )
         obs = self.normalize(obs)
         #print("curio obs norm", obs )
-        pred = self.rnd_pred(obs)
-        target = self.rnd_target(obs)
+        with torch.no_grad():
+            target = self.rnd_target(obs)
+        with torch.enable_grad():
+            pred = self.rnd_pred(obs)
+            loss = torch.mean((pred - target)**2)
+        
         rew = torch.norm(pred - target, dim=-1)
-        loss = torch.mean((pred - target)**2)
-        loss.requires_grad= True
+        
+        #loss.requires_grad= True
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

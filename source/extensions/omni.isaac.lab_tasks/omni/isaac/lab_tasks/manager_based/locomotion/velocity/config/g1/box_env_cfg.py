@@ -80,8 +80,8 @@ class G1Rewards:
     #                params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
     # stable_at_target=RewTerm(func=mdp.stable_at_target, weight=-0.5,
     #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
-    # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,#weight=-0.05,
-    #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,#weight=-0.05,
+                            params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.0005,#weight=-0.05,
     #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # feet_air_time = RewTerm(
@@ -100,7 +100,7 @@ class G1Rewards:
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},
     # )
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
-    curiosity = RewTerm(func=mdp.curiosity, weight=100)
+    curiosity = RewTerm(func=mdp.curiosity, weight=200)
 
 # @configclass
 # class RoughRewards:
@@ -256,7 +256,7 @@ class CuriosityCfg:
     hidden_sizes_pred = [256,128]
     hidden_sizes_target = [256,128]
     pred_dim = 16
-    lr= 8e-3
+    lr= 1e-3
     adaptive_lr = True
     # obs_lb = [-1,-2,-2,-4,-4,-4]+[-0.1,-0.2,-0.4]+[-1,-1,-1,-1]+ [-1.11111 for _ in range(29)]+[0 for _ in range(12)]
     # obs_ub =[2,2,2,4,4,4]+[1.8,0.2,0.]+[1,1,1,1]+[1.11111 for _ in range(29)]+[1200 for _ in range(12)]
