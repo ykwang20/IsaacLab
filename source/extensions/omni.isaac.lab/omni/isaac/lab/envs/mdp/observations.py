@@ -239,6 +239,7 @@ def box_height(env: ManagerBasedEnv) -> torch.Tensor:
 
 def time(env: ManagerBasedEnv) -> torch.Tensor:
     if hasattr(env, "episode_length_buf"):
+        #print('time:', env.episode_length_buf* env.step_dt)
         return (env.episode_length_buf * env.step_dt).unsqueeze(-1)
     else:
         return torch.zeros(env.num_envs,1, device=env.device)
@@ -249,7 +250,7 @@ def body_contact_forces(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> t
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
     net_contact_forces = contact_sensor.data.net_forces_w_history
     # compute the violation    
-    return torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0]
+    return torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0]>0.1
 
 def image(
     env: ManagerBasedEnv,

@@ -107,7 +107,7 @@ def track_ang_vel_z_world_exp(
     )
     return torch.exp(-ang_vel_error / std**2)
 
-def position_tracking(env, command_name: str,  target_time: float,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+def position_tracking(env, command_name: str,  start_time: float,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Reward tracking of position in the world frame using exponential kernel."""
     # extract the used quantities (to enable type-hinting)
     asset = env.scene[asset_cfg.name]
@@ -122,7 +122,7 @@ def position_tracking(env, command_name: str,  target_time: float,asset_cfg: Sce
     # print('pos robot:',asset.data.root_pos_w[:, :2]-env.scene.env_origins[:,:2])
     # print('pos error square',pos_error_square)
     #print('pos error rew',torch.where(episode_time>2,1/(1+pos_error_square),torch.zeros_like(pos_error_square)))
-    return torch.where(episode_time>2,1/(1+pos_error_square),torch.zeros_like(pos_error_square))
+    return torch.where(episode_time>start_time,1/(1+pos_error_square),torch.zeros_like(pos_error_square))
     
 
 def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -132,7 +132,7 @@ def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityC
     norm_vel=asset.data.root_lin_vel_w.norm(dim=1)
     pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
                            +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
-    
+    #print('wait penalty:',torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
     return torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),
                        torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
 
@@ -148,7 +148,9 @@ def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = Scene
     vel=asset.data.root_lin_vel_w
     raw_reward=torch.cosine_similarity(direction[:,:3],vel[:,:3],dim=1)
     #print('raw reward:',raw_reward)
-    condition=torch.logical_and(torch.norm(vel)<0.1,raw_reward>0)
+    condition=torch.logical_and(torch.norm(vel,dim=-1)<0.1,raw_reward>0)
+    # print('velocity:',torch.norm(vel))
+    # print('move in direction:',torch.where(condition,torch.zeros_like(raw_reward),raw_reward))
     return torch.where(condition,torch.zeros_like(raw_reward),raw_reward)
 
 def joint_velocity_limits(
