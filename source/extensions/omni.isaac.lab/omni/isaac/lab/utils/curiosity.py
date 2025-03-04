@@ -66,16 +66,17 @@ class NHashCuriosity:
     def update_curiosity(self, obs:torch.Tensor, shift=0.)-> torch.Tensor:
         # obs: (n_env, n_obs), shift: (n_env, 1)
         n_env = len(obs)
-        obs_ = torch.cat([obs, self.sym_map(obs)], dim=0)
-        obs_ = self.normalize(obs_)
-        obs_ *= (1 + shift.repeat(2,1))  # multiply radius
-        hash_ = self.hashnn(obs_)
+        #obs_ = torch.cat([obs, self.sym_map(obs)], dim=0)
+        obs = self.normalize(obs)
+        #obs_ *= (1 + shift.repeat(2,1))  # multiply radius
+        hash_ = self.hashnn(obs)
         bin_idx = self.bin2int(hash_) # (2*n_env,)
-        newbin = torch.zeros_like(self.bin_cnt).repeat(2*n_env,1)
-        newbin[torch.arange(2*n_env, device=self.device), bin_idx] += 1
+        newbin = torch.zeros_like(self.bin_cnt).repeat(n_env,1)
+        newbin[torch.arange(n_env, device=self.device), bin_idx] += 1
         self.bin_cnt += torch.sum(newbin, dim=0)
         rew = 1.0 / torch.sqrt(1.0 + self.bin_cnt[bin_idx])
-        return (0.5 * rew[:n_env] + 0.5 * rew[n_env:]).detach()
+        #return (0.5 * rew[:n_env] + 0.5 * rew[n_env:]).detach()
+        return rew.detach()
 
 
 class RNDNN(nn.Module):

@@ -302,3 +302,8 @@ def curiosity(env: ManagerBasedRLEnv):
     curio_obs = env.obs_buf['curiosity']
     assert curio_obs.shape[1] == env.cfg.curiosity.obs_dim
     return env.curiosity_handler.update_curiosity(curio_obs)
+
+def curiosity_cnt(env: ManagerBasedRLEnv):
+    curio_obs = env.obs_buf['curiosity']
+    assert curio_obs.shape[1] == env.cfg.curiosity.obs_dim
+    return env.curiosity_handler.update_curiosity(curio_obs)

@@ -82,7 +82,10 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
             print("***************************************************8curiousity")
             if cfg.curiosity.use_curiosity:
                 print("***************************************************using curiousity")
-                self.curiosity_handler = RNDCuriosity(cfg, self.device)
+                if cfg.curiosity.type == "nhash":
+                    self.curiosity_handler = NHashCuriosity(cfg, self.device)
+                elif cfg.curiosity.type == "rnd":
+                    self.curiosity_handler = RNDCuriosity(cfg, self.device)
         # store the render mode
         self.render_mode = render_mode
 
