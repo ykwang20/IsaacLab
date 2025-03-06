@@ -100,8 +100,8 @@ class G1Rewards:
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},
     # )
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
-    #curiosity_rnd = RewTerm(func=mdp.curiosity, weight=200)
-    curiosity_cnt = RewTerm(func=mdp.curiosity_cnt, weight=2000)
+    curiosity_rnd = RewTerm(func=mdp.curiosity, weight=200)
+    #curiosity_cnt = RewTerm(func=mdp.curiosity_cnt, weight=2000)
 
 
 # @configclass
@@ -171,7 +171,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.8, 0.8), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -253,7 +253,7 @@ class ActionsCfg:
 
 @configclass
 class CuriosityCfg:
-    type ="nhash" #"rnd" #"nhash"
+    type ="rnd" #"nhash"
     use_curiosity = True
     obs_dim =54
     hidden_sizes_pred = [256,128]
@@ -263,7 +263,7 @@ class CuriosityCfg:
     lr= 1e-3
     adaptive_lr = True
     obs_lb = [-1,-2,-2,-4,-4,-4]+[-0.1,-0.2,-0.4]+[-1,-1,-1,-1]+ [-1.11111 for _ in range(29)]+[0 for _ in range(12)]
-    obs_ub =[2,2,2,4,4,4]+[1.8,0.2,0.]+[1,1,1,1]+[1.11111 for _ in range(29)]+[1 for _ in range(12)]
+    obs_ub =[2,2,2,4,4,4]+[1.8,0.2,0.]+[1,1,1,1]+[1.11111 for _ in range(29)]+[1200 for _ in range(12)]
    
 @configclass
 class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
