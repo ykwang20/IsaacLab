@@ -109,22 +109,22 @@ class G1Rewards(RewardsCfg):
     #         )
     #     },
     # )
-    joint_deviation_arms = RewTerm(
-        func=mdp.joint_deviation_l1,
-        weight=-0.1,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=[
-                    ".*_shoulder_pitch_joint",
-                    ".*_shoulder_roll_joint",
-                    ".*_shoulder_yaw_joint",
-                    ".*_elbow_joint",
-                    ".*_wrist_roll_joint",
-                ],
-            )
-        },
-    )
+    # joint_deviation_arms = RewTerm(
+    #     func=mdp.joint_deviation_l1,
+    #     weight=-0.1,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             joint_names=[
+    #                 ".*_shoulder_pitch_joint",
+    #                 ".*_shoulder_roll_joint",
+    #                 ".*_shoulder_yaw_joint",
+    #                 ".*_elbow_joint",
+    #                 ".*_wrist_roll_joint",
+    #             ],
+    #         )
+    #     },
+    # )
     # joint_deviation_fingers = RewTerm(
     #     func=mdp.joint_deviation_l1,
     #     weight=-0.05,
@@ -143,16 +143,16 @@ class G1Rewards(RewardsCfg):
     #         )
     #     },
     # )
-    joint_deviation_torso_z = RewTerm(
-        func=mdp.joint_deviation_l1,
-        weight=-0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["waist_yaw_joint"])},
-    )
-    joint_deviation_torso_xy = RewTerm(
-        func=mdp.joint_deviation_l1,
-        weight=-0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["waist_roll_joint","waist_pitch_joint"])},
-    )
+    # joint_deviation_torso_z = RewTerm(
+    #     func=mdp.joint_deviation_l1,
+    #     weight=-0.1,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=["waist_yaw_joint"])},
+    # )
+    # joint_deviation_torso_xy = RewTerm(
+    #     func=mdp.joint_deviation_l1,
+    #     weight=-0.1,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=["waist_roll_joint","waist_pitch_joint"])},
+    # )
     # joint_deviation_torso = RewTerm(
     #     func=mdp.joint_deviation_l1,
     #     weight=-0.1,
@@ -172,6 +172,61 @@ class TerminationsCfg:
     )
 
 
+@configclass
+class ObservationsCfg:
+    """Observation specifications for the MDP."""
+
+    @configclass
+    class PolicyCfg(ObsGroup):
+        """Observations for policy group."""
+
+        # observation terms (order preserved)
+        base_lin_vel = ObsTerm(func=mdp.base_lin_vel, noise=Unoise(n_min=-0.1, n_max=0.1))
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.2, n_max=0.2))
+        projected_gravity = ObsTerm(
+            func=mdp.projected_gravity,
+            noise=Unoise(n_min=-0.05, n_max=0.05),
+        )
+        velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-1.5, n_max=1.5))
+        actions = ObsTerm(func=mdp.last_action)
+        height_scan = ObsTerm(
+            func=mdp.height_scan,
+            params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+            noise=Unoise(n_min=-0.1, n_max=0.1),
+            clip=(-1.0, 1.0),
+        )
+
+        def __post_init__(self):
+            self.enable_corruption = True
+            self.concatenate_terms = True
+
+    # observation groups
+    policy: PolicyCfg = PolicyCfg()
+
+    @configclass
+    class StateCfg(ObsGroup):
+        """Observations for policy group."""
+
+        # observation terms (order preserved)
+        base_pos =ObsTerm(func=mdp.base_pos_z)
+        base_lin_vel_w = ObsTerm(func=mdp.root_lin_vel_w)
+        base_ang_vel_w = ObsTerm(func=mdp.root_ang_vel_w)
+        base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
+        projected_gravity = ObsTerm(func=mdp.projected_gravity)
+        base_quat = ObsTerm(func=mdp.root_quat_w)
+        joint_pos = ObsTerm(func=mdp.joint_pos)
+        #contact_forces = ObsTerm(func=mdp.body_contact_forces, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"])} )
+
+
+        def __post_init__(self):
+            self.enable_corruption = True
+            self.concatenate_terms = False#True
+
+    # observation groups
+    state: StateCfg = StateCfg()
 
 
 
@@ -179,14 +234,14 @@ class TerminationsCfg:
 class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     rewards: G1Rewards = G1Rewards()
     terminations: TerminationsCfg = TerminationsCfg()
-    
+    observations: ObservationsCfg = ObservationsCfg()
 
     def __post_init__(self):
         # post init of parent
         
         # Scene
-        #self.scene.robot = G1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene.robot = G1_29_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = G1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        #self.scene.robot = G1_29_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         super().__post_init__()
         # Randomization

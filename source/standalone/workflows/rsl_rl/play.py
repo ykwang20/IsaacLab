@@ -41,6 +41,7 @@ simulation_app = app_launcher.app
 import gymnasium as gym
 import os
 import torch
+import numpy as np
 
 from rsl_rl.runners import OnPolicyRunner
 
@@ -113,6 +114,9 @@ def main():
     # reset environment
     obs, _ = env.get_observations()
     timestep = 0
+    # all_episodes_states = []
+    # max_episodes=500
+    # episode=0
     # simulate environment
     while simulation_app.is_running():
         # run everything in inference mode
@@ -121,6 +125,17 @@ def main():
             actions = policy(obs)
             # env stepping
             obs, _, _, _ = env.step(actions)
+            # episode += 1
+            # if episode < max_episodes:
+            #     print('obs',env.env.obs_buf)
+                
+            #     state = env.env.obs_buf['state']
+            #     print(f"State: {state}")
+            #     all_episodes_states.append(state)
+            # elif episode == max_episodes:
+            #     all_episodes_states_array = np.array(all_episodes_states, dtype=object)
+            #     np.save("episodes_states.npy", all_episodes_states_array)
+
         if args_cli.video:
             timestep += 1
             # Exit the play loop after recording one video
