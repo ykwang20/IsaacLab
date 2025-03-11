@@ -259,10 +259,19 @@ class LatentDynamicsLearner:
         with torch.no_grad():
             next_latent_target = self.model.latent(next_obs)
         
-        dynamics_loss = torch.mean(nn.MSELoss(reduction='sum')(outputs["next_latent_pred"], next_latent_target))
-        
-        # Prediction losses
-        pred_loss = torch.mean(nn.MSELoss(reduction='sum')(outputs["prediction"], batch["prediction_targets"]))
+        # Compute loss over the whole sequence
+        # dynamics loss, latent consistency
+        dynamics_loss = torch.mean(
+            torch.sum(
+                nn.MSELoss(reduction='none')(outputs["next_latent_pred"], next_latent_target), 
+                dim=1  # Sum over seq_len
+        ))
+
+        # prediction loss
+        pred_loss = torch.mean(
+            torch.sum(
+                nn.MSELoss(reduction='none')(outputs["prediction"], batch["prediction_targets"]), dim=1
+        ))
         
         total_loss = (
             self.cfg["dynamics_weight"] * dynamics_loss +
