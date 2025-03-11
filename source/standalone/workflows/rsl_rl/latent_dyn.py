@@ -390,7 +390,7 @@ class LatentDynamicsLearner:
             for result_key in eval_results_dict:
                 log_key = f"Eval/{result_key}"
                 self.writer.add_scalar(f"{log_key}_ave", np.mean(eval_results_dict[result_key]), self.current_epoch)
-            info_str += f"Eval loss ave: {np.mean(results_dict['total_loss'])}"
+            info_str += f"Eval loss ave: {np.mean(eval_results_dict['total_loss'])}"
         
         print(info_str)
 
