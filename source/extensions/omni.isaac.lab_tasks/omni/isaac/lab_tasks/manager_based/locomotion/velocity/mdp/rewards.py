@@ -118,6 +118,9 @@ def position_tracking(env, command_name: str,  start_time: float,asset_cfg: Scen
     #return 1-0.5*pos_error
     pos_error_square = torch.sum(torch.square(env.command_manager.get_command(command_name)[:, :2]
                             +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2]), dim=1)
+    pos_error=torch.sqrt(pos_error_square)
+    # print('pos error:',pos_error)
+    # print('pos tracking reward:',1/(1+pos_error_square))
     # print('pos command:',env.command_manager.get_command(command_name)[:, :2])
     # print('pos robot:',asset.data.root_pos_w[:, :2]-env.scene.env_origins[:,:2])
     # print('pos error square',pos_error_square)

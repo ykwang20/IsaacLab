@@ -79,7 +79,6 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
 
         super().__init__(cfg=cfg)
         if hasattr(cfg, "curiosity"):
-            print("***************************************************8curiousity")
             if cfg.curiosity.use_curiosity:
                 print("***************************************************using curiousity")
                 if cfg.curiosity.type == "nhash":

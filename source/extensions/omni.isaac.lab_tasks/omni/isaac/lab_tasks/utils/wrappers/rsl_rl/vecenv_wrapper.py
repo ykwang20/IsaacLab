@@ -184,7 +184,7 @@ class RslRlVecEnvWrapper(VecEnv):
         # this is only needed for infinite horizon tasks
         if not self.unwrapped.cfg.is_finite_horizon:
             extras["time_outs"] = truncated
-
+        extras['terminated']=terminated
         # return the step information
         return obs, rew, dones, extras
 

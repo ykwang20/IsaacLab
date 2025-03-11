@@ -6,6 +6,8 @@
 from omni.isaac.lab.managers import RewardTermCfg as RewTerm
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.managers import TerminationTermCfg as DoneTerm
+from omni.isaac.lab.managers import EventTermCfg as EventTerm
+
 
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.managers import ObservationGroupCfg as ObsGroup
@@ -245,9 +247,15 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         super().__post_init__()
         # Randomization
-        self.events.push_robot = None
+        #self.events.push_robot = None
+        self.events.push_robot=EventTerm(
+        func=mdp.push_by_setting_velocity,
+        mode="interval",
+        interval_range_s=(2.0, 2.1),
+        params={"velocity_range": {"x": (-5, 5), "y": (-3, 3)}},
+    )
         self.events.add_base_mass = None
-        self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
+        self.events.reset_robot_joints.params["position_range"] = (0.8, 1.2)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5),"z": (0.03,0.03), "yaw": (-3.14, 3.14)},
@@ -312,5 +320,5 @@ class G1RoughEnvCfg_PLAY(G1RoughEnvCfg):
         # disable randomization for play
         self.observations.policy.enable_corruption = False
         # remove random pushing
-        self.events.base_external_force_torque = None
-        self.events.push_robot = None
+        #self.events.base_external_force_torque = None
+        #self.events.push_robot = None

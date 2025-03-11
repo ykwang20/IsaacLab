@@ -114,27 +114,42 @@ def main():
     # reset environment
     obs, _ = env.get_observations()
     timestep = 0
-    # all_episodes_states = []
-    # max_episodes=500
-    # episode=0
-    # simulate environment
+    all_episodes_states = []
+    max_episodes=500
+    episode=0
+    #simulate environment
     while simulation_app.is_running():
         # run everything in inference mode
         with torch.inference_mode():
             # agent stepping
             actions = policy(obs)
             # env stepping
-            obs, _, _, _ = env.step(actions)
-            # episode += 1
+            obs, rew, _, extra = env.step(actions)
+            episode += 1
+
             # if episode < max_episodes:
-            #     print('obs',env.env.obs_buf)
+            #     #print('obs',env.env.obs_buf)
                 
             #     state = env.env.obs_buf['state']
-            #     print(f"State: {state}")
-            #     all_episodes_states.append(state)
+            #     rew=rew
+            #     terminated=extra['terminated']
+            #     actions=env.env.action_manager.get_term('joint_pos').processed_actions
+            #     # print('rew',rew)
+            #     # print('terminated',terminated)
+            #     # print(f"State: {state}")
+            #     # print(f"Actions: {actions}")
+            #     step_data = {
+            #     "state": state,
+            #     "action": actions,
+            #     "reward": rew,
+            #     "terminated": terminated
+            # }
+            #     all_episodes_states.append(step_data)
+            #     print(f"Episode: {episode}")
             # elif episode == max_episodes:
             #     all_episodes_states_array = np.array(all_episodes_states, dtype=object)
             #     np.save("episodes_states.npy", all_episodes_states_array)
+            #     print("Episodes states saved")
 
         if args_cli.video:
             timestep += 1

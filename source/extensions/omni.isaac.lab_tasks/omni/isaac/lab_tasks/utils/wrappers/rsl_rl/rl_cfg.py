@@ -71,6 +71,8 @@ class RslRlPpoAlgorithmCfg:
 
     max_grad_norm: float = MISSING
     """The maximum gradient norm."""
+    
+    rnd_cfg: dict | None = None
 
 
 @configclass
