@@ -27,10 +27,62 @@ class TrajectoryDataset(Dataset):
         self.seq_len = seq_len
 
         # Process each field directly into shape (T, num_agents, feature_dim)
+        self._preprocess_dataset(process_fn=[self._makekey_time_to_terminate, self._makekey_termination_in_seq])
         self.observations = self._process_observations()  # shape: (T, num_agents, obs_feature_dim)
         self.actions = self._process_actions()            # shape: (T, num_agents, action_dim)
         self.targets = self._process_prediction_targets()   # shape: (T, num_agents, target_feature_dim)
         self.next_observations = self._process_next_obs()   # shape: (T, num_agents, obs_feature_dim)
+
+    def _preprocess_dataset(self, process_fn:list):
+        for fn in process_fn:
+            fn()
+
+    def _makekey_time_to_terminate(self):
+        """
+        Calculate the number of steps until termination for each agent at each timestep.
+        Returns a tensor of shape (T, num_agents) where each element represents the number
+        of steps left until the agent terminates from that timestep.
+        """
+        # Initialize a tensor to store steps to termination for each agent at each timestep
+        time_to_terminate = torch.zeros((self.T, self.num_agents), dtype=torch.float32)
+        
+        # Extract termination flags for each timestep and agent
+        terminated_flags = torch.stack([d["terminated"] for d in self.data], dim=0)  # shape: (T, num_agents)
+        
+        # Process each agent separately
+        for agent_idx in range(self.num_agents):
+            # Start from the end and work backwards
+            steps_left = 0
+            for t in range(self.T - 1, -1, -1):
+                if terminated_flags[t, agent_idx]:
+                    # If agent is terminated at this step, reset counter
+                    steps_left = 0
+                else:
+                    # If not terminated, increment counter
+                    steps_left += 1
+                
+                # Store the number of steps until termination
+                time_to_terminate[t, agent_idx] = steps_left
+        
+        time_to_terminate = torch.clamp(time_to_terminate, max=self.seq_len) / self.seq_len
+        for t in range(self.T):
+            self.data[t]["time_to_terminate"] = time_to_terminate[t].to(torch.float32)  # tensor of shape (num_agents,)
+
+
+    def _makekey_termination_in_seq(self):
+        # Stack termination flags from each timestep; shape: (T, num_agents)
+        terminated_flags = torch.stack([d["terminated"] for d in self.data], dim=0)
+        T, num_agents = terminated_flags.shape
+        future_term = torch.zeros((T, num_agents), dtype=torch.bool)
+        
+        # For each timestep, look ahead seq_len steps (or until T) and compute if any termination occurs
+        for t in range(T):
+            end_t = min(t + self.seq_len, T)
+            # Compute boolean OR over the window [t, end_t)
+            future_term[t] = terminated_flags[t:end_t].any(dim=0)
+            # Update the corresponding dictionary in self.data with this new field
+            self.data[t]["terminate_in_seq"] = future_term[t].to(torch.float32)
+
 
     def _process_observations(self):
         """Process observations into shape (T, num_agents, obs_feature_dim)."""
@@ -85,6 +137,8 @@ class TrajectoryDataset(Dataset):
         next_obs[:-1] = self.observations[1:]
         next_obs[-1] = self.observations[-1]
         return next_obs
+    
+    
 
     def __len__(self):
         # Each agent has (T - seq_len + 1) possible trajectory segments.
@@ -104,7 +158,7 @@ class TrajectoryDataset(Dataset):
             'obs': self.observations[start_time:start_time + self.seq_len, agent, :],
             'action': self.actions[start_time:start_time + self.seq_len, agent, :],
             'next_obs': self.next_observations[start_time:start_time + self.seq_len, agent, :],
-            'prediction_targets': self.targets[start_time:start_time + self.seq_len, agent, :]
+            'prediction_targets': self.targets[start_time:start_time + self.seq_len, agent, :],
         }
         return sample
 
@@ -472,7 +526,7 @@ class LatentLearnerCfg:
 
     """logging"""
     logger = "tensorboard"
-    log_dir = "./logs/latent_dynamics_gru"
+    log_dir = "./logs/pred_terminate_scaled"
     save_interval = 10
     eval_interval = 2
 
@@ -483,15 +537,15 @@ class LatentLearnerCfg:
     learning_rate = 0.0001
     grad_norm_clip = 10
     dynamics_weight = 1
-    prediction_weight = 5
+    prediction_weight = 1
 
     """model architecture"""
-    pred_targets_keys = ["base_lin_vel", "base_quat"] #, "terminated"] # 8dims
+    pred_targets_keys = ['time_to_terminate', 'terminate_in_seq']  # ["base_lin_vel", "base_quat", 'time_to_terminate']
     model_cfg = LatentModelCfg(
         obs_dim=57,
         act_dim=37,
         latent_dim=16,
-        pred_targets_dim=7,
+        pred_targets_dim=2,
         encoder_cfg = MLPCfg(
             hidden_dims = [128],
             activation_at_end = [True, False],
@@ -508,7 +562,7 @@ class LatentLearnerCfg:
     )
 
 
-# Example usage
+
 if __name__ == "__main__":
     # Load trajectory data
     config = LatentLearnerCfg().to_dict()
