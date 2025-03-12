@@ -119,13 +119,32 @@ def position_tracking(env, command_name: str,  start_time: float,asset_cfg: Scen
     pos_error_square = torch.sum(torch.square(env.command_manager.get_command(command_name)[:, :2]
                             +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2]), dim=1)
     pos_error=torch.sqrt(pos_error_square)
-    # print('pos error:',pos_error)
-    # print('pos tracking reward:',1/(1+pos_error_square))
+    print('pos error:',pos_error)
+    print('pos tracking reward:',1/(1+pos_error_square))
     # print('pos command:',env.command_manager.get_command(command_name)[:, :2])
     # print('pos robot:',asset.data.root_pos_w[:, :2]-env.scene.env_origins[:,:2])
     # print('pos error square',pos_error_square)
     #print('pos error rew',torch.where(episode_time>2,1/(1+pos_error_square),torch.zeros_like(pos_error_square)))
     return torch.where(episode_time>start_time,1/(1+pos_error_square),torch.zeros_like(pos_error_square))
+
+def position_tracking_cos(env, command_name: str,  start_time: float,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Reward tracking of position in the world frame using exponential kernel."""
+    # extract the used quantities (to enable type-hinting)
+    asset = env.scene[asset_cfg.name]
+    episode_time=env.episode_length_buf * env.step_dt
+    #print('episode step:',episode_time)
+    # pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
+    #                        +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
+    #return 1-0.5*pos_error
+    pos_error = torch.linalg.norm(env.command_manager.get_command(command_name)[:, :2]
+                            +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2],dim=-1)
+    
+    rew=0.3+0.7*torch.cos(pos_error*torch.pi/2)
+    # print('pos command:',env.command_manager.get_command(command_name)[:, :2])
+    # print('pos robot:',asset.data.root_pos_w[:, :2]-env.scene.env_origins[:,:2])
+    # print('pos error square',pos_error_square)
+    #print('pos error rew',torch.where(episode_time>2,1/(1+pos_error_square),torch.zeros_like(pos_error_square)))
+    return torch.where(episode_time>start_time,rew,torch.zeros_like(rew))
     
 
 def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -302,11 +321,11 @@ def success_bonus(
 
 
 def curiosity(env: ManagerBasedRLEnv):
-    curio_obs = env.obs_buf['curiosity']
+    curio_obs = env.obs_buf['rnd_state']
     assert curio_obs.shape[1] == env.cfg.curiosity.obs_dim
     return env.curiosity_handler.update_curiosity(curio_obs)
 
 def curiosity_cnt(env: ManagerBasedRLEnv):
-    curio_obs = env.obs_buf['curiosity']
+    curio_obs = env.obs_buf['rnd_state']
     assert curio_obs.shape[1] == env.cfg.curiosity.obs_dim
     return env.curiosity_handler.update_curiosity(curio_obs)

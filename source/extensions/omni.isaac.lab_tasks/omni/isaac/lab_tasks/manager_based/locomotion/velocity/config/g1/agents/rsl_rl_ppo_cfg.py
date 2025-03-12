@@ -37,24 +37,24 @@ class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         lam=0.95,
         desired_kl=0.01,
         max_grad_norm=1.0,
-        rnd_cfg= {
-            "weight": 10000.0,  # initial weight of the RND reward
+        # rnd_cfg= {
+        #     "weight": 200.0,  # initial weight of the RND reward
 
-            # note: This is a dictionary with a required key called "mode".
-            #   Please check the RND module for more information.
-            "weight_schedule": None,
-            "reward_normalization": False,  # whether to normalize RND reward
-            "state_normalization": True,  # whether to normalize RND state observations
+        #     # note: This is a dictionary with a required key called "mode".
+        #     #   Please check the RND module for more information.
+        #     "weight_schedule": None,
+        #     "reward_normalization": True,  # whether to normalize RND reward
+        #     "state_normalization": True,  # whether to normalize RND state observations
 
-            # -- Learning parameters
-            "learning_rate": 0.001,  # learning rate for RND
+        #     # -- Learning parameters
+        #     "learning_rate": 0.001,  # learning rate for RND
 
-            # -- Network parameters
-            # note: if -1, then the network will use dimensions of the observation
-            "num_outputs": 16,  # number of outputs of RND network
-            "predictor_hidden_dims": [256,128], # hidden dimensions of predictor network
-            "target_hidden_dims": [256,128],  # hidden dimensions of target network
-        }
+        #     # -- Network parameters
+        #     # note: if -1, then the network will use dimensions of the observation
+        #     "num_outputs": 16,  # number of outputs of RND network
+        #     "predictor_hidden_dims": [256,128], # hidden dimensions of predictor network
+        #     "target_hidden_dims": [256,128],  # hidden dimensions of target network
+        # }
     )
     
 

@@ -35,7 +35,9 @@ class G1Rewards:
     # -- task
     #track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)})
     #track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_exp, weight=1.5, params={"command_name": "base_velocity", "std": math.sqrt(0.25)})
-    position_tracking = RewTerm(func=mdp.position_tracking, weight=20.,
+    # position_tracking = RewTerm(func=mdp.position_tracking, weight=20.,
+    #                               params={"command_name": "target_pos_e","start_time": 1})
+    position_tracking = RewTerm(func=mdp.position_tracking_cos, weight=20.,
                                   params={"command_name": "target_pos_e","start_time": 1})
     wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-2,params={"command_name": "target_pos_e"})
     #move_in_direction = RewTerm(func=mdp.move_in_direction, weight=5.0,params={"command_name": "target_pos_e"})
@@ -100,7 +102,7 @@ class G1Rewards:
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},
     # )
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
-    #curiosity_rnd = RewTerm(func=mdp.curiosity, weight=200)
+    curiosity_rnd = RewTerm(func=mdp.curiosity, weight=200)
     #curiosity_cnt = RewTerm(func=mdp.curiosity_cnt, weight=2000)
 
 
@@ -115,8 +117,8 @@ class TargetCommandsCfg:
 
     target_pos_e = mdp.TargetCommandCfg(
         asset_name="robot",
-        resampling_time_range=(10.0, 10.0),
-        radius_range=(2., 3.),
+        resampling_time_range=(5.0, 5.0),
+        radius_range=(2.45, 2.75),
         debug_vis=True,
         success_threshold=0.06,
     )
@@ -171,7 +173,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.4), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -254,7 +256,7 @@ class ActionsCfg:
 @configclass
 class CuriosityCfg:
     type ="rnd" #"nhash"
-    use_curiosity = False#True
+    use_curiosity = True
     obs_dim =54
     hidden_sizes_pred = [256,128]
     hidden_sizes_target = [256,128]
