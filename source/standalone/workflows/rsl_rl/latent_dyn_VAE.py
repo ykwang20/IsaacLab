@@ -10,16 +10,11 @@ from omni.isaac.lab.utils import configclass
 from rsl_rl.utils import store_code_state, resolve_nn_activation
 from collections import defaultdict
 
+#############################################
+# Dataset remains the same
+#############################################
 class TrajectoryDataset(Dataset):
     def __init__(self, data_path: str, pred_targets_keys=["reward", "terminated"], seq_len=1):
-        """
-        Args:
-            data_path (str): Path to the .npy file containing the list of transitions.
-            pred_targets_keys (list, optional): List of keys in each transition to be used as prediction targets.
-                If a key is not at the top level, it will be looked up under 'state'.
-            seq_len (int): The desired sequence length (number of contiguous time steps) for each trajectory sample.
-        """
-        # Load the data (assumes it was saved with np.save using allow_pickle=True)
         self.data = np.load(data_path, allow_pickle=True).tolist()
         self.pred_targets_keys = pred_targets_keys or []
         self.num_agents = self.data[0]['action'].shape[0]
@@ -38,80 +33,44 @@ class TrajectoryDataset(Dataset):
             fn()
 
     def _makekey_time_to_terminate(self):
-        """
-        Calculate the number of steps until termination for each agent at each timestep.
-        Returns a tensor of shape (T, num_agents) where each element represents the number
-        of steps left until the agent terminates from that timestep.
-        """
-        # Initialize a tensor to store steps to termination for each agent at each timestep
         time_to_terminate = torch.zeros((self.T, self.num_agents), dtype=torch.float32)
-        
-        # Extract termination flags for each timestep and agent
         terminated_flags = torch.stack([d["terminated"] for d in self.data], dim=0)  # shape: (T, num_agents)
-        
-        # Process each agent separately
         for agent_idx in range(self.num_agents):
-            # Start from the end and work backwards
             steps_left = 0
             for t in range(self.T - 1, -1, -1):
                 if terminated_flags[t, agent_idx]:
-                    # If agent is terminated at this step, reset counter
                     steps_left = 0
                 else:
-                    # If not terminated, increment counter
                     steps_left += 1
-                
-                # Store the number of steps until termination
                 time_to_terminate[t, agent_idx] = steps_left
-        
         time_to_terminate = torch.clamp(time_to_terminate, max=self.seq_len) / self.seq_len
         for t in range(self.T):
-            self.data[t]["time_to_terminate"] = time_to_terminate[t].to(torch.float32)  # tensor of shape (num_agents,)
-
+            self.data[t]["time_to_terminate"] = time_to_terminate[t].to(torch.float32)
 
     def _makekey_termination_in_seq(self):
-        # Stack termination flags from each timestep; shape: (T, num_agents)
         terminated_flags = torch.stack([d["terminated"] for d in self.data], dim=0)
         T, num_agents = terminated_flags.shape
         future_term = torch.zeros((T, num_agents), dtype=torch.bool)
-        
-        # For each timestep, look ahead seq_len steps (or until T) and compute if any termination occurs
         for t in range(T):
             end_t = min(t + self.seq_len, T)
-            # Compute boolean OR over the window [t, end_t)
             future_term[t] = terminated_flags[t:end_t].any(dim=0)
-            # Update the corresponding dictionary in self.data with this new field
             self.data[t]["terminate_in_seq"] = future_term[t].to(torch.float32)
 
-
     def _process_observations(self):
-        """Process observations into shape (T, num_agents, obs_feature_dim)."""
         obs_list = []
         for d in self.data:
             state = d["state"]
-            # Instead of iterating agent-by-agent to build a flat vector,
-            # we concatenate each state key along the feature dimension for the entire batch of agents.
-            # Each state[key] is assumed to have shape (num_agents, *feature_shape).
             keys = list(state.keys())
-            # Flatten the feature dimensions for each key (keeping the agent dimension)
             features = [state[k].view(self.num_agents, -1) for k in keys]
-            # Concatenate along the last dimension: result shape (num_agents, total_obs_feature_dim)
             obs_t = torch.cat(features, dim=-1)
             obs_list.append(obs_t)
-        # Stack along time dimension: (T, num_agents, total_obs_feature_dim)
         return torch.stack(obs_list, dim=0).cpu().to(torch.float32)
 
     def _process_actions(self):
-        """Process actions into shape (T, num_agents, action_dim)."""
-        action_list = [d["action"] for d in self.data]  # each is (num_agents, action_dim)
+        action_list = [d["action"] for d in self.data]
         return torch.stack(action_list, dim=0).cpu().to(torch.float32)
 
     def _process_prediction_targets(self):
-        """
-        For each timestep, build a target tensor of shape (num_agents, target_feature_dim)
-        by concatenating the specified keys. For each key, if it's not found at the top level,
-        it is retrieved from d['state'].
-        """
         targets_list = []
         for d in self.data:
             components = []
@@ -123,33 +82,21 @@ class TrajectoryDataset(Dataset):
                 else:
                     raise KeyError(f"Key '{key}' not found in the transition data.")
                 components.append(comp)
-            # Concatenate along feature dimension: shape (num_agents, total_target_feature_dim)
             targets_t = torch.cat(components, dim=-1)
             targets_list.append(targets_t)
         return torch.stack(targets_list, dim=0).cpu().to(torch.float32)
 
     def _process_next_obs(self):
-        """
-        Create next observations by shifting observations by one timestep.
-        The last timestep is duplicated.
-        """
         next_obs = torch.zeros_like(self.observations)
         next_obs[:-1] = self.observations[1:]
         next_obs[-1] = self.observations[-1]
         return next_obs
-    
-    
 
     def __len__(self):
-        # Each agent has (T - seq_len + 1) possible trajectory segments.
         trajectories_per_agent = self.T - self.seq_len + 1
         return self.num_agents * trajectories_per_agent
 
     def __getitem__(self, idx):
-        """
-        Convert the flat index to (agent, starting time) pair and return a trajectory segment
-        of length seq_len for each field.
-        """
         trajectories_per_agent = self.T - self.seq_len + 1
         agent = idx // trajectories_per_agent
         start_time = idx % trajectories_per_agent
@@ -165,7 +112,7 @@ class TrajectoryDataset(Dataset):
     def __repr__(self):
         info = [
             "Dataset Summary:",
-            f"State key: {self.data[0]['state'].keys()}"
+            f"State key: {self.data[0]['state'].keys()}",
             f"Total sequences: {len(self)}",
             f"Sequence Length: {self.seq_len}",
             f"Observations shape: {self.observations.shape}",
@@ -173,9 +120,10 @@ class TrajectoryDataset(Dataset):
             f"Prediction Targets shape: {self.targets.shape}"
         ]
         return "\n".join(info)
-    
 
-
+#############################################
+# Network Modules
+#############################################
 class MLPNetwork(nn.Module):
     def __init__(self, cfg: dict, device: str = 'cuda:0'):
         super().__init__()
@@ -203,7 +151,6 @@ class MLPNetwork(nn.Module):
 
     def forward(self, x):
         return self.net(x)
-    
 
 class GRUNetwork(nn.Module):
     def __init__(self, cfg: dict, device: str = 'cuda:0'):
@@ -225,56 +172,82 @@ class GRUNetwork(nn.Module):
         print(f"{name} GRU Network initialized:\nGRU: {self.gru}\nFC: {self.fc}")
 
     def forward(self, x):
-        # Forward pass through GRU
-        hiddens, _ = self.gru(x)  # out: batch_size, seq_len, hidden_dim
-        # generate output embedding
-        out = self.fc(hiddens)    # out: (batch_size, seq_len, output_dim)
+        hiddens, _ = self.gru(x)
+        out = self.fc(hiddens)
         return out
-    
+
+
+class VAEEncoder(nn.Module):
+    def __init__(self, cfg:dict, device:str):
+        """
+        Wraps a base encoder network and outputs both a mean and log variance.
+        """
+        super().__init__()
+        self.base_encoder = MLPNetwork(cfg, device=device)
+        # Two separate linear layers to predict mean and logvar from the encoder’s output.
+        self.fc_mu = nn.Linear(cfg['output_dim'], cfg['output_dim'], device=device)
+        self.fc_logvar = nn.Linear(cfg['output_dim'], cfg['output_dim'], device=device)
+
+    def forward(self, x):
+        h = self.base_encoder(x)
+        mu = self.fc_mu(h)
+        logvar = self.fc_logvar(h)
+        return mu, logvar
 
 
 class LatentDynamicsModel(nn.Module):
-    """Latent dynamics model following IsaacLab's architecture patterns"""
-    def __init__(self, 
-                 cfg: dict,
-                 **kwargs):
+    def __init__(self, cfg: dict, **kwargs):
         super().__init__()
         
-        # Encoder network
         self.device = cfg["device"]
         self.encoder_cfg = cfg["encoder_cfg"]
         self.dynamics_cfg = cfg["dynamics_cfg"]
         self.predictor_cfg = cfg.get("predictor_cfg", None)
-    
-        self.encoder = MLPNetwork(self.encoder_cfg, device = self.device)
         
-        # Dynamics core
-        self.dynamics = GRUNetwork(self.dynamics_cfg, device = self.device)
-
-        self.predictor = MLPNetwork(self.predictor_cfg, device = self.device)
-
+        # Create a VAE encoder
+        self.encoder = VAEEncoder(self.encoder_cfg, device=self.device)
+        
+        # Dynamics core remains the same
+        self.dynamics = GRUNetwork(self.dynamics_cfg, device=self.device)
+        
+        # Use predictor as the decoder for reconstruction
+        self.predictor = MLPNetwork(self.predictor_cfg, device=self.device)
 
     def forward(self, obs, actions):
-        # Encode current observation
-        latent = self.encoder(obs)  # (batch_size, seq_len, latent_dim)
+        # VAE encoding: get mean and log variance and sample latent vector using reparameterization
+        mu, logvar = self.encoder(obs)
+        std = torch.exp(0.5 * logvar)
+        epsilon = torch.randn_like(std)
+        z = mu + std * epsilon
         
-        # Predict next latent state
-        dynamics_input = torch.cat([latent, actions], dim=-1) # (batch_size, seq_len, latent_dim+act_dim)
-        next_latent_pred = self.dynamics(dynamics_input) # (batch_size, seq_len, latent_dim)
+        # Dynamics prediction from the latent and actions
+        dynamics_input = torch.cat([z, actions], dim=-1)
+        next_latent_pred = self.dynamics(dynamics_input)
         
-        # Predict extra information
-        prediction = self.predictor(latent) ## (batch_size, seq_len, pred_dim)
+        # Reconstruction of the observation from the latent
+        predction = self.predictor(z)
         
         return {
-            "latent": latent,
+            "mu": mu,
+            "logvar": logvar,
+            "latent": z,
             "next_latent_pred": next_latent_pred,
-            "prediction": prediction
+            "prediction": predction
         }
     
     def latent(self, obs):
-        return self.encoder(obs) # (batch_size, seq_len, latent_dim)
+        # For evaluation, use the mean of the latent distribution
+        mu, _ = self.encoder(obs)
+        return mu
+    
+    def next_latent(self, latent, actions):
+        dynamics_input = torch.cat([latent, actions], dim=-1)
+        next_latent = self.dynamics(dynamics_input)
+        return next_latent
 
-
+#############################################
+# Modified LatentDynamicsLearner including KL loss
+#############################################
 class LatentDynamicsLearner:
     def __init__(self, cfg, **kwargs):
         self.cfg = cfg
@@ -286,7 +259,6 @@ class LatentDynamicsLearner:
         )
         print(full_dataset)
         
-        # Split dataset into training  and evaluation
         train_size = int((1-self.cfg["eval_pct"]) * len(full_dataset))
         eval_size = len(full_dataset) - train_size
         self.train_dataset, self.eval_dataset = random_split(full_dataset, [train_size, eval_size])
@@ -308,50 +280,50 @@ class LatentDynamicsLearner:
         actions = batch['action']
         next_obs = batch['next_obs']
         
-        # Forward pass
         outputs = self.model(obs, actions)
         
         with torch.no_grad():
+            latent = self.model.latent(obs)
             next_latent_target = self.model.latent(next_obs)
         
-        # Compute loss over the whole sequence
-        # dynamics loss, latent consistency
-        dynamics_loss = torch.mean(
-            torch.sum(
-                nn.MSELoss(reduction='none')(outputs["next_latent_pred"], next_latent_target), 
-                dim=1  # Sum over seq_len
-        ))
+        # Dynamics loss (latent consistency)
+        if self.cfg["dynamics_loss_to_encoder"]:
+            next_latent_pred = outputs["next_latent_pred"]
+        else:
+            next_latent_pred = self.model.next_latent(latent, actions)
 
-        # prediction loss
-        pred_loss = torch.mean(
-            torch.sum(
-                nn.MSELoss(reduction='none')(outputs["prediction"], batch["prediction_targets"]), dim=1
-        ))
+        dynamics_loss = torch.mean(
+            torch.sum(nn.MSELoss(reduction='none')(next_latent_pred, next_latent_target), dim=1))
+        
+        # Prediction loss (decoder output vs. target state)
+        prediction_loss = torch.mean(
+            torch.sum(nn.MSELoss(reduction='none')(outputs["prediction"], batch["prediction_targets"]), dim=1))
+        
+        # KL divergence loss for the VAE part
+        kl_loss = -0.5 * torch.mean(torch.sum(1 + outputs["logvar"] - outputs["mu"]**2 - torch.exp(outputs["logvar"]), dim=1))
         
         total_loss = (
             self.cfg["dynamics_weight"] * dynamics_loss +
-            self.cfg["prediction_weight"] * pred_loss
+            self.cfg["prediction_weight"] * prediction_loss +
+            self.cfg["kl_weight"] * kl_loss
         )
         
         results = {
             "total_loss": total_loss.item(),
             "dynamics_loss": dynamics_loss.item(),
-            "predction_loss": pred_loss.item(),
+            "prediction_loss": prediction_loss.item(),
+            "kl_loss": kl_loss.item(),
         }
-
+        
         return total_loss, results
     
     def update(self, batch):
         total_loss, results = self.loss(batch)
-
-        # Optimization step
         self.optimizer.zero_grad()
         total_loss.backward()
         grad_norm = nn.utils.clip_grad_norm_(self.model.parameters(), self.cfg["grad_norm_clip"])
         self.optimizer.step()
-        
         results["grad_norm"] = grad_norm.item()
-
         return results
     
     def evaluate(self):
@@ -367,23 +339,18 @@ class LatentDynamicsLearner:
     
     def learn(self):
         if self.log_dir is not None:
-            # Launch either Tensorboard or Neptune & Tensorboard summary writer(s), default: Tensorboard.
-            self.logger_type = self.cfg.get("logger", "tensorboard")
-            self.logger_type = self.logger_type.lower()
+            self.logger_type = self.cfg.get("logger", "tensorboard").lower()
 
             if self.logger_type == "neptune":
                 from rsl_rl.utils.neptune_utils import NeptuneSummaryWriter
-
                 self.writer = NeptuneSummaryWriter(log_dir=self.log_dir, flush_secs=10, cfg=self.cfg)
                 self.writer.log_config(self.cfg)
             elif self.logger_type == "wandb":
                 from rsl_rl.utils.wandb_utils import WandbSummaryWriter
-
                 self.writer = WandbSummaryWriter(log_dir=self.log_dir, flush_secs=10, cfg=self.cfg)
                 self.writer.log_config(self.cfg)
             elif self.logger_type == "tensorboard":
                 from torch.utils.tensorboard import SummaryWriter
-
                 self.writer = SummaryWriter(log_dir=self.log_dir, flush_secs=10)
             else:
                 raise ValueError("Logger type not found. Please choose 'neptune', 'wandb' or 'tensorboard'.")
@@ -392,7 +359,7 @@ class LatentDynamicsLearner:
         while self.current_epoch < self.cfg["epoches"]:
             for batch in self.train_dataloader:
                 batch = {key: value.to(self.device) for key, value in batch.items()}
-                result = latent_learner.update(batch)
+                result = self.update(batch)
                 results.append(result)
             
             if self.current_epoch % self.cfg["eval_interval"] == 0 or self.current_epoch == self.cfg["epoches"]-1:
@@ -400,13 +367,10 @@ class LatentDynamicsLearner:
             
             if self.log_dir is not None:
                 self.log(locals())
-
                 if self.current_epoch % self.cfg["save_interval"] == 0 or self.current_epoch == self.cfg["epoches"]-1:
                     self.save(os.path.join(self.log_dir, f"model_{self.current_epoch}.pt"))
-
             self.current_epoch += 1
             
-
     def save(self, path:str):
         saved_dict = {
             "model_state_dict": self.model.state_dict(),
@@ -415,14 +379,12 @@ class LatentDynamicsLearner:
         }
         torch.save(saved_dict, path)
 
-
     def load(self, path:str, load_optimizer:bool=True):
-        loaded_dict = torch.load(path, weights_only=False)
+        loaded_dict = torch.load(path)
         self.model.load_state_dict(loaded_dict["model_state_dict"])
         if load_optimizer:
             self.optimizer.load_state_dict(loaded_dict["optimizer_state"])
         self.current_epoch = loaded_dict["epoch"]
-
 
     def log(self, locs:dict):
         info_str = ""
@@ -440,7 +402,6 @@ class LatentDynamicsLearner:
                 log_key = f"Grad/{result_key}"
             self.writer.add_scalar(f"{log_key}_ave", np.mean(results_dict[result_key]), self.current_epoch)
             self.writer.add_scalar(f"{log_key}_std", np.std(results_dict[result_key]), self.current_epoch)
-
         self.writer.add_scalar("lr", self.learning_rate, self.current_epoch)
         info_str += f"Epoch {self.current_epoch}, Total loss ave: {np.mean(results_dict['total_loss'])}. "
         
@@ -450,7 +411,6 @@ class LatentDynamicsLearner:
             for result_key in eval_results_list[0].keys():
                 for result in eval_results_list:
                     eval_results_dict[result_key].append(result[result_key])
-            
             for result_key in eval_results_dict:
                 log_key = f"Eval/{result_key}"
                 self.writer.add_scalar(f"{log_key}_ave", np.mean(eval_results_dict[result_key]), self.current_epoch)
@@ -458,7 +418,9 @@ class LatentDynamicsLearner:
         
         print(info_str)
 
-
+#############################################
+# Configurations (with new KL weight parameter)
+#############################################
 @configclass
 class MLPCfg:
     input_dim = 128
@@ -467,7 +429,6 @@ class MLPCfg:
     activation = "crelu"
     activation_at_end = [True, False]
     name = "Network"
-
 
 @configclass
 class GRUCfg:
@@ -486,7 +447,6 @@ class GRUCfg:
     def __post_init__(self):
         self.fc_cfg.input_dim = self.hidden_dim
         self.fc_cfg.output_dim = self.output_dim
-
 
 @configclass
 class LatentModelCfg:
@@ -516,7 +476,6 @@ class LatentModelCfg:
         self.dynamics_cfg.name = "dynamics"
         self.dynamics_cfg.__post_init__()
 
-
 @configclass
 class LatentLearnerCfg:
     device = 'cuda:0'
@@ -527,7 +486,7 @@ class LatentLearnerCfg:
 
     """logging"""
     logger = "tensorboard"
-    log_dir = "./logs/pred_full_state"
+    log_dir = "./logs/VAE_decoupled_loss"
     save_interval = 10
     eval_interval = 2
 
@@ -539,10 +498,13 @@ class LatentLearnerCfg:
     grad_norm_clip = 10
     dynamics_weight = 1
     prediction_weight = 1
+    kl_weight = 1e-3  # weight for KL divergence term
+    dynamics_loss_to_encoder = False # whether propagate dynamics loss through encoder
 
     """model architecture"""
-    # pred_targets_keys = ['time_to_terminate', 'terminate_in_seq']  # ["base_lin_vel", "base_quat", 'time_to_terminate']
-    pred_targets_keys = ['base_pos', 'base_lin_vel_w', 'base_ang_vel_w', 'base_lin_vel', 'base_ang_vel', 'projected_gravity', 'base_quat', 'joint_pos']
+    # pred_targets_keys contains all state information for reconstruction
+    pred_targets_keys = ['base_pos', 'base_lin_vel_w', 'base_ang_vel_w', 'base_lin_vel', 
+                         'base_ang_vel', 'projected_gravity', 'base_quat', 'joint_pos']   # full observation
     model_cfg = LatentModelCfg(
         obs_dim=57,
         act_dim=37,
@@ -559,19 +521,17 @@ class LatentLearnerCfg:
             activation="crelu"
         ),
         dynamics_cfg = GRUCfg(
-            hidden_dim=32
+            hidden_dim=64
         )
     )
 
-
-
 if __name__ == "__main__":
-    # Load trajectory data
+    # Load trajectory data and configuration
     config = LatentLearnerCfg().to_dict()
     
     time_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     config["log_dir"] = os.path.join(config["log_dir"], time_str)
-    # Initialize manager with config
+    # Initialize latent dynamics learner with the modified (VAE) model
     latent_learner = LatentDynamicsLearner(config)
     
     # Training loop
