@@ -11,6 +11,7 @@ from omni.isaac.lab.managers import ObservationGroupCfg as ObsGroup
 from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from omni.isaac.lab.managers import CurriculumTermCfg as CurrTerm
+from omni.isaac.lab.sensors import  patterns
 
 
 
@@ -84,8 +85,8 @@ class G1Rewards:
     #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
     # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,#weight=-0.05,
     #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-    # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.0005,#weight=-0.05,
-    #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#weight=-0.05,
+                            params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # feet_air_time = RewTerm(
     #     func=mdp.feet_air_time_positive_biped,
     #     weight=0.25,
@@ -102,8 +103,9 @@ class G1Rewards:
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},
     # )
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
-    curiosity_rnd = RewTerm(func=mdp.curiosity, weight=200)
+    #curiosity_rnd = RewTerm(func=mdp.curiosity, weight=200)
     #curiosity_cnt = RewTerm(func=mdp.curiosity_cnt, weight=2000)
+    joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-1,)
 
 
 # @configclass
@@ -155,7 +157,7 @@ class TerminationsCfg:
     # max_consecutive_success = DoneTerm(
     #     func=mdp.max_consecutive_success, params={"num_success": 1, }#params={"num_success": 50, }
     # )
-    nax_contact= DoneTerm(func=mdp.max_contact_force, 
+    max_contact= DoneTerm(func=mdp.max_contact_force, 
                             params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*"]), "threshold": 2000.0})
     # on_air= DoneTerm(func=mdp.on_air,params={"sensor_cfg":
     #                                           SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), "threshold": 1.0})
@@ -173,7 +175,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.8, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -187,28 +189,37 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
-        base_lin_vel = ObsTerm(func=mdp.base_lin_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        projected_gravity = ObsTerm(
-            func=mdp.projected_gravity,
-            noise=Unoise(n_min=-0.05, n_max=0.05),
-        )
-        target_commands = ObsTerm(func=mdp.target_pos_root_frame, params={"command_name": "target_pos_e"})
+        # base_lin_vel = ObsTerm(func=mdp.base_lin_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        # base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
+
+        root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w, noise=Unoise(n_min=-0.01, n_max=0.01))
+        root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w, noise=Unoise(n_min=-0.01, n_max=0.01))
+        # projected_gravity = ObsTerm(
+        #     func=mdp.projected_gravity,
+        #     noise=Unoise(n_min=-0.05, n_max=0.05),
+        # )
+        base_quat = ObsTerm(func=mdp.root_quat_w)
+        base_pos = ObsTerm(func=mdp.root_pos_w)
+        #target_commands = ObsTerm(func=mdp.target_pos_root_frame, params={"command_name": "target_pos_e"})
+        target_commands = ObsTerm(func=mdp.target_pos_w, params={"command_name": "target_pos_e"})
         #velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
         joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.05, n_max=0.05))
         actions = ObsTerm(func=mdp.last_processed_action,params={"action_name":"joint_pos"})
         box_height = ObsTerm(func=mdp.box_height, noise=Unoise(n_min=-0.01, n_max=0.01))
+
         time = ObsTerm(func=mdp.time)
-        height_scan = ObsTerm(
-            func=mdp.height_scan,
-            params={"sensor_cfg": SceneEntityCfg("height_scanner")},
-            noise=Unoise(n_min=-0.01, n_max=0.01), 
-            clip=(-1.0, 1.0),
-        )
+        # height_scan = ObsTerm(
+        #     func=mdp.height_scan,
+        #     params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+        #     noise=Unoise(n_min=-0.01, n_max=0.01), 
+        #     clip=(-1.0, 1.0),
+        # )
+        #contact_forces = ObsTerm(func=mdp.body_contact_forces, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*"])} )
+
 
         def __post_init__(self):
-            self.enable_corruption = True
+            self.enable_corruption = False#True
             self.concatenate_terms = True
 
     # observation groups
@@ -224,7 +235,7 @@ class ObservationsCfg:
         base_pos = ObsTerm(func=mdp.root_pos_target,params={"command_name": "target_pos_e"})
         base_quat = ObsTerm(func=mdp.root_quat_w)
         joint_pos = ObsTerm(func=mdp.joint_pos_limit_normalized)
-        #contact_forces = ObsTerm(func=mdp.body_contact_forces, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"])} )
+        contact_forces = ObsTerm(func=mdp.body_contact_forces, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"])} )
 
 
         def __post_init__(self):
@@ -251,21 +262,22 @@ class CurriculumCfg:
 class ActionsCfg:
     """Action specifications for the MDP."""
 
-    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True)
+    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.25, use_default_offset=True,
+                                           clip = {".*_joint":(-100., 100.)})
 
 @configclass
 class CuriosityCfg:
     type ="rnd" #"nhash"
     use_curiosity = True
-    obs_dim =42#54
+    obs_dim =54
     hidden_sizes_pred = [256,128]
     hidden_sizes_target = [256,128]
     hidden_sizes_hash=[32]
     pred_dim = 16
     lr= 1e-3
     adaptive_lr = True
-    obs_lb = [-1,-2,-2,-4,-4,-4]+[-0.1,-0.1,-0.4]+[-1,-1,-1,-1]+ [-1.11111 for _ in range(29)]#+[0 for _ in range(12)]
-    obs_ub =[2,2,2,4,4,4]+[1.5,0.1,0.]+[1,1,1,1]+[1.11111 for _ in range(29)]#+[1200 for _ in range(12)]
+    obs_lb = [-1,-2,-2,-4,-4,-4]+[-0.1,-0.1,-0.4]+[-1,-1,-1,-1]+ [-1.11111 for _ in range(29)]+[0 for _ in range(12)]
+    obs_ub =[2,2,2,4,4,4]+[1.5,0.1,0.]+[1,1,1,1]+[1.11111 for _ in range(29)]+[1200 for _ in range(12)]
    
 @configclass
 class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
@@ -285,6 +297,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         #self.scene.contact_forces.history_length = 16
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
+        #self.scene.height_scanner.pattern_cfg=patterns.GridPatternCfg(resolution=0.2, size=[1.6, 1.0])
         # self.scene.terrain.physics_material.dynamic_friction = 2.
         # self.scene.terrain.physics_material.static_friction = 2.
         super().__post_init__()

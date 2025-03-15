@@ -141,6 +141,9 @@ def joint_torques_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     """
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
+    # for i in range(len(asset.data.applied_torque[0])):
+        
+    #     print( asset.data.joint_names[i],":",asset.data.applied_torque[:, i])
     return torch.sum(torch.square(asset.data.applied_torque[:, asset_cfg.joint_ids]), dim=1)
 
 
@@ -249,6 +252,7 @@ def action_rate_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
     return torch.sum(torch.square(env.action_manager.action - env.action_manager.prev_action), dim=1)
 
 def processed_action_rate_l2(env: ManagerBasedRLEnv, action_name: str | None = None) -> torch.Tensor:
+    #print('processed actions: ', env.action_manager.get_term(action_name).processed_actions)
     return torch.sum(torch.square( env.action_manager.get_term(action_name).processed_actions
                                    - env.action_manager.get_term(action_name).last_processed_actions), dim=1)
 
@@ -260,6 +264,7 @@ def action_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
 def power_consumption(env: ManagerBasedRLEnv,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize the power consumption using L2 squared kernel."""
     asset: Articulation = env.scene[asset_cfg.name]
+    #print('power consumption: ', asset.data.applied_torque * asset.data.joint_vel)
     return torch.sum(torch.abs(asset.data.applied_torque * asset.data.joint_vel), dim=1)
 
 

@@ -148,6 +148,7 @@ def max_contact_force(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: Scen
     # compute the violation
     #threshold = 0
     max_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0]
+    #print('max contact', max_contact)
     max_contact = torch.max(max_contact,dim=1)[0]
     return max_contact > threshold
 

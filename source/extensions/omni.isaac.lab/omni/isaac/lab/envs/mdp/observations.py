@@ -549,7 +549,7 @@ def last_processed_action(env: ManagerBasedEnv, action_name: str | None = None) 
     entire processed action tensor is returned.
     """
    
-    return env.action_manager.get_term(action_name).processed_actions
+    return 0.25*env.action_manager.get_term(action_name).processed_actions
 """
 Commands.
 """
@@ -566,3 +566,10 @@ def target_pos_root_frame(env: ManagerBasedRLEnv, command_name: str,asset_cfg: S
     target_pos_w=env.command_manager.get_command(command_name)+env.scene.env_origins
     target_pos_w[:,2]=0
     return target_pos_w-asset.data.root_pos_w
+
+def target_pos_w(env: ManagerBasedRLEnv, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    target_pos_w=env.command_manager.get_command(command_name)
+    target_pos_w[:,2]=0
+    return target_pos_w

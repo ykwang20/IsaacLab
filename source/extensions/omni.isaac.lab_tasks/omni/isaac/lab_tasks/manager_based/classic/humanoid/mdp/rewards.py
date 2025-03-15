@@ -38,6 +38,38 @@ def move_to_target_bonus(
     return torch.where(heading_proj > threshold, 1.0, heading_proj / threshold)
 
 
+def position_tracking(env, target_pos,  start_time: float,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Reward tracking of position in the world frame using exponential kernel."""
+    # extract the used quantities (to enable type-hinting)
+    asset = env.scene[asset_cfg.name]
+    episode_time=env.episode_length_buf * env.step_dt
+    #print('episode step:',episode_time)
+    # pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
+    #                        +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
+    #return 1-0.5*pos_error
+    target_pos = torch.tensor(target_pos, device=env.device)
+    pos_error_square = torch.sum(torch.square(target_pos[:2]
+                            +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2]), dim=1)
+    #pos_error=torch.sqrt(pos_error_square)
+    # print('pos error:',pos_error)
+    # print('pos tracking reward:',1/(1+pos_error_square))
+    # print('pos command:',env.command_manager.get_command(command_name)[:, :2])
+    # print('pos robot:',asset.data.root_pos_w[:, :2]-env.scene.env_origins[:,:2])
+    # print('pos error square',pos_error_square)
+    #print('pos error rew',torch.where(episode_time>2,1/(1+pos_error_square),torch.zeros_like(pos_error_square)))
+    return torch.where(episode_time>start_time,1/(1+pos_error_square),torch.zeros_like(pos_error_square))
+
+def wait_penalty(env, target_pos,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalty for waiting."""
+    # extract the used quantities (to enable type-hinting)
+    asset = env.scene[asset_cfg.name]
+    norm_vel=asset.data.root_lin_vel_w.norm(dim=1)
+    target_pos = torch.tensor(target_pos, device=env.device)
+    pos_error = torch.norm(target_pos[ :2]
+                           +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
+    #print('wait penalty:',torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
+    return torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),
+                       torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
 class progress_reward(ManagerTermBase):
     """Reward for making progress towards the target."""
 

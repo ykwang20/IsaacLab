@@ -50,7 +50,7 @@ class JointPositionActionCfg(JointActionCfg):
     If True, this flag results in overwriting the values of :attr:`offset` to the default joint positions
     from the articulation asset.
     """
-    clip: dict[str, tuple] = {".*_joint":(-10., 10.)}
+    clip: dict[str, tuple] = {".*_joint":(-100., 100.)}
 
 @configclass
 class RelativeJointPositionActionCfg(JointActionCfg):
