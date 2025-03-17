@@ -31,7 +31,7 @@ import omni.isaac.lab.terrains as terrain_gen
 
 FLAT_AND_ROUGH_CFG = terrain_gen.TerrainGeneratorCfg(
     size=(8.0, 8.0),
-    border_width=20.0,
+    border_width=19.0,
     num_rows=10,
     num_cols=20,
     horizontal_scale=0.1,
@@ -213,13 +213,14 @@ class ObservationsCfg:
 
         # observation terms (order preserved)
         base_pos =ObsTerm(func=mdp.base_pos_z)
-        base_lin_vel_w = ObsTerm(func=mdp.root_lin_vel_w)
-        base_ang_vel_w = ObsTerm(func=mdp.root_ang_vel_w)
-        base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
-        projected_gravity = ObsTerm(func=mdp.projected_gravity)
-        base_quat = ObsTerm(func=mdp.root_quat_w)
-        joint_pos = ObsTerm(func=mdp.joint_pos)
+        base_lin_vel_w = ObsTerm(func=mdp.root_lin_vel_w,noise=Unoise(n_min=-0.1, n_max=0.1))
+        base_ang_vel_w = ObsTerm(func=mdp.root_ang_vel_w,noise=Unoise(n_min=-0.2, n_max=0.2))
+        base_lin_vel = ObsTerm(func=mdp.base_lin_vel,noise=Unoise(n_min=-0.1, n_max=0.1))
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel,noise=Unoise(n_min=-0.2, n_max=0.2))
+        projected_gravity = ObsTerm(func=mdp.projected_gravity,noise=Unoise(n_min=-0.05, n_max=0.05))
+        base_quat = ObsTerm(func=mdp.root_quat_w,noise=Unoise(n_min=-0.05, n_max=0.05))
+        joint_pos = ObsTerm(func=mdp.joint_pos,noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_vel = ObsTerm(func=mdp.joint_vel,noise=Unoise(n_min=-1.5, n_max=1.5))
         #contact_forces = ObsTerm(func=mdp.body_contact_forces, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"])} )
 
 
@@ -230,6 +231,144 @@ class ObservationsCfg:
     # observation groups
     state: StateCfg = StateCfg()
 
+@configclass
+class SimEventCfg:
+    """Configuration for events."""
+
+    # startup
+    physics_material = EventTerm(
+        func=mdp.randomize_rigid_body_material,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+            "static_friction_range": (0.8, 0.8),
+            "dynamic_friction_range": (0.6, 0.6),
+            "restitution_range": (0.0, 0.0),
+            "num_buckets": 64,
+        },
+    )
+
+    add_base_mass = EventTerm(
+        func=mdp.randomize_rigid_body_mass,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+            "mass_distribution_params": (-0, 0),
+            "operation": "add",
+        },
+    )
+
+    # reset
+    base_external_force_torque = EventTerm(
+        func=mdp.apply_external_force_torque,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+            "force_range": (0.0, 0.0),
+            "torque_range": (-0.0, 0.0),
+        },
+    )
+
+    reset_base = EventTerm(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
+            "velocity_range": {
+                "x": (-0.5, 0.5),
+                "y": (-0.5, 0.5),
+                "z": (-0.5, 0.5),
+                "roll": (-0.5, 0.5),
+                "pitch": (-0.5, 0.5),
+                "yaw": (-0.5, 0.5),
+            },
+        },
+    )
+
+    reset_robot_joints = EventTerm(
+        func=mdp.reset_joints_by_scale,
+        mode="reset",
+        params={
+            "position_range": (0.8, 1.2),
+            "velocity_range": (0.0, 0.0),
+        },
+    )
+
+@configclass
+class RealEventCfg:
+    """Configuration for events."""
+
+    # startup
+    physics_material = EventTerm(
+        func=mdp.randomize_rigid_body_material,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+            "static_friction_range": (0.4, 0.4),
+            "dynamic_friction_range": (0.3, 0.3),
+            "restitution_range": (0.0, 0.0),
+            "num_buckets": 64,
+        },
+    )
+    # robot_joint_stiffness_and_damping = EventTerm(
+    #     func=mdp.randomize_actuator_gains,
+    #     min_step_count_between_reset=720,
+    #     mode="reset",
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+    #         "stiffness_distribution_params": (0., 0.),
+    #         "damping_distribution_params": (0., 0.),
+    #         "operation": "add",
+    #         "distribution": "uniform",
+    #     },
+    # )
+
+    add_base_mass = EventTerm(
+        func=mdp.randomize_rigid_body_mass,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+            "mass_distribution_params": (6., 8.),
+            "operation": "add",
+        },
+    )
+
+    # reset
+    base_external_force_torque = EventTerm(
+        func=mdp.apply_external_force_torque,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+            "force_range": (0.0, 0.0),
+            "torque_range": (-0.0, 0.0),
+        },
+    )
+
+    reset_base = EventTerm(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
+            "velocity_range": {
+                "x": (-0.5, 0.5),
+                "y": (-0.5, 0.5),
+                "z": (-0.5, 0.5),
+                "roll": (-0.5, 0.5),
+                "pitch": (-0.5, 0.5),
+                "yaw": (-0.5, 0.5),
+            },
+        },
+    )
+
+    reset_robot_joints = EventTerm(
+        func=mdp.reset_joints_by_scale,
+        mode="reset",
+        params={
+            "position_range": (0.8, 1.2),
+            "velocity_range": (0.0, 0.0),
+        },
+    )
+
 
 
 @configclass
@@ -237,25 +376,26 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     rewards: G1Rewards = G1Rewards()
     terminations: TerminationsCfg = TerminationsCfg()
     observations: ObservationsCfg = ObservationsCfg()
+    #events: SimEventCfg = SimEventCfg()
+    events: RealEventCfg = RealEventCfg()
 
     def __post_init__(self):
         # post init of parent
         
         # Scene
-        self.scene.robot = G1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        #self.scene.robot = G1_29_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = G1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        #self.scene.robot = G1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         super().__post_init__()
         # Randomization
         #self.events.push_robot = None
-        self.events.push_robot=EventTerm(
-        func=mdp.push_by_setting_velocity,
-        mode="interval",
-        interval_range_s=(2.0, 2.1),
-        params={"velocity_range": {"x": (-5, 5), "y": (-3, 3)}},
-    )
-        self.events.add_base_mass = None
-        self.events.reset_robot_joints.params["position_range"] = (0.8, 1.2)
+    #     self.events.push_robot=EventTerm(
+    #     func=mdp.push_by_setting_velocity,
+    #     mode="interval",
+    #     interval_range_s=(2.0, 2.1),
+    #     params={"velocity_range": {"x": (-5, 5), "y": (-3, 3)}},
+    # )
+        #self.events.add_base_mass = None
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5),"z": (0.03,0.03), "yaw": (-3.14, 3.14)},

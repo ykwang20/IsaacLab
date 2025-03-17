@@ -128,20 +128,22 @@ class JointAction(ActionTerm):
     Operations.
     """
 
+   
+
     def process_actions(self, actions: torch.Tensor):
         # store the raw actions
         self._raw_actions[:] = actions
         self.last_processed_actions=self.processed_actions
         
-
+        self._processed_actions = self._raw_actions * self._scale + self._offset
         # clip actions
         if self.cfg.clip is not None:
             self._processed_actions = torch.clamp(
-                self._raw_actions[:], min=self._clip[:, :, 0], max=self._clip[:, :, 1]
+                self._processed_actions[:], min=self._clip[:, :, 0], max=self._clip[:, :, 1]
             )
             #print('processed actions after clip: ', self._processed_actions)
         # apply the affine transformations
-        self._processed_actions = self._processed_actions * self._scale + self._offset
+        
 
     def reset(self, env_ids: Sequence[int] | None = None) -> None:
         self._raw_actions[env_ids] = 0.0
@@ -159,6 +161,21 @@ class JointPositionAction(JointAction):
         # use default joint positions as offset
         if cfg.use_default_offset:
             self._offset = self._asset.data.default_joint_pos[:, self._joint_ids].clone()
+
+    # def process_actions(self, actions: torch.Tensor):
+    #     # store the raw actions
+    #     self._raw_actions[:] = actions
+    #     self.last_processed_actions=self.processed_actions
+        
+
+    #     # clip actions
+    #     if self.cfg.clip is not None:
+    #         self._processed_actions = torch.clamp(
+    #             self._raw_actions[:], min=self._clip[:, :, 0], max=self._clip[:, :, 1]
+    #         )
+    #         #print('processed actions after clip: ', self._processed_actions)
+    #     # apply the affine transformations
+    #     self._processed_actions = self._processed_actions * self._scale + self._offset
 
     def apply_actions(self):
         # set position targets

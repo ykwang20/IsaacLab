@@ -27,6 +27,7 @@ from omni.isaac.lab_tasks.manager_based.locomotion.velocity.velocity_env_cfg imp
 from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG, G1_29_CFG,G1_29_MINIMAL_CFG,G1_29_MODIFIED_CFG # isort: skip
 import omni.isaac.lab.terrains as terrain_gen
 import math
+import random
 
 
 @configclass
@@ -36,10 +37,10 @@ class G1Rewards:
     # -- task
     #track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)})
     #track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_exp, weight=1.5, params={"command_name": "base_velocity", "std": math.sqrt(0.25)})
-    # position_tracking = RewTerm(func=mdp.position_tracking, weight=20.,
-    #                               params={"command_name": "target_pos_e","start_time": 1})
-    position_tracking_cos = RewTerm(func=mdp.position_tracking_cos, weight=20.,
+    position_tracking = RewTerm(func=mdp.position_tracking, weight=20.,
                                   params={"command_name": "target_pos_e","start_time": 1})
+    # position_tracking_cos = RewTerm(func=mdp.position_tracking_cos, weight=20.,
+    #                               params={"command_name": "target_pos_e","start_time": 1})
     wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-2,params={"command_name": "target_pos_e"})
     #move_in_direction = RewTerm(func=mdp.move_in_direction, weight=5.0,params={"command_name": "target_pos_e"})
     move_in_direction = RewTerm(func=mdp.move_in_direction, weight=10.0,params={"command_name": "target_pos_e"})
@@ -175,7 +176,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.8, 0.8), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.45, 0.85), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -262,8 +263,8 @@ class CurriculumCfg:
 class ActionsCfg:
     """Action specifications for the MDP."""
 
-    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.25, use_default_offset=True,
-                                           clip = {".*_joint":(-100., 100.)})
+    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True,
+                                           clip = {".*_joint":(-10., 10.)})
 
 @configclass
 class CuriosityCfg:
@@ -298,8 +299,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         #self.scene.contact_forces.history_length = 16
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
         #self.scene.height_scanner.pattern_cfg=patterns.GridPatternCfg(resolution=0.2, size=[1.6, 1.0])
-        # self.scene.terrain.physics_material.dynamic_friction = 2.
-        # self.scene.terrain.physics_material.static_friction = 2.
+       
         super().__post_init__()
         self.episode_length_s =5#10#20
         # Randomization

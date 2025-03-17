@@ -348,6 +348,7 @@ def randomize_actuator_gains(
             damping = actuator.damping[env_ids].clone()
             damping[:, actuator_indices] = asset.data.default_joint_damping[env_ids][:, global_indices].clone()
             randomize(damping, damping_distribution_params)
+
             actuator.damping[env_ids] = damping
             if isinstance(actuator, ImplicitActuator):
                 asset.write_joint_damping_to_sim(damping, joint_ids=actuator.joint_indices, env_ids=env_ids)
@@ -992,11 +993,14 @@ def _randomize_prop_by_op(
             f"Unknown distribution: '{distribution}' for joint properties randomization."
             " Please use 'uniform', 'log_uniform', 'gaussian'."
         )
+
+    print('damping before randomization:', data[dim_0_ids, dim_1_ids])
     # perform the operation
     if operation == "add":
         data[dim_0_ids, dim_1_ids] += dist_fn(*distribution_parameters, (n_dim_0, n_dim_1), device=data.device)
     elif operation == "scale":
         data[dim_0_ids, dim_1_ids] *= dist_fn(*distribution_parameters, (n_dim_0, n_dim_1), device=data.device)
+        print('damping after randomization:', data[dim_0_ids, dim_1_ids])
     elif operation == "abs":
         data[dim_0_ids, dim_1_ids] = dist_fn(*distribution_parameters, (n_dim_0, n_dim_1), device=data.device)
     else:
