@@ -24,7 +24,7 @@ from omni.isaac.lab_tasks.manager_based.locomotion.velocity.velocity_env_cfg imp
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG, G1_29_CFG,G1_29_MINIMAL_CFG,G1_29_MODIFIED_CFG # isort: skip
+from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG, G1_29_CFG,G1_29_MINIMAL_CFG,G1_29_MODIFIED_CFG,G1_29_ANNEAL_23_CFG # isort: skip
 import omni.isaac.lab.terrains as terrain_gen
 import math
 import random
@@ -41,7 +41,7 @@ class G1Rewards:
                                   params={"command_name": "target_pos_e","start_time": 1})
     # position_tracking_cos = RewTerm(func=mdp.position_tracking_cos, weight=20.,
     #                               params={"command_name": "target_pos_e","start_time": 1})
-    wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-2,params={"command_name": "target_pos_e"})
+    wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-10,params={"command_name": "target_pos_e"}) #weight=-2
     #move_in_direction = RewTerm(func=mdp.move_in_direction, weight=5.0,params={"command_name": "target_pos_e"})
     move_in_direction = RewTerm(func=mdp.move_in_direction, weight=10.0,params={"command_name": "target_pos_e"})
     #termination_penalty = RewTerm(func=mdp.contact_terminated, weight=-200.0)
@@ -55,8 +55,8 @@ class G1Rewards:
     #     "success_distance": 0.06,}
     # )
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
-   #torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-6,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-5,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    #torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-4,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-1, params={"soft_ratio": 1., "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     #torque_lim_penalty=RewTerm(func=mdp.applied_torque_limits, weight=-0.002,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     joint_acc_penalty=RewTerm(func=mdp.joint_acc_l2, weight=-2e-7,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
@@ -86,7 +86,7 @@ class G1Rewards:
     #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
     # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,#weight=-0.05,
     #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#weight=-0.05,
+    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,
                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # feet_air_time = RewTerm(
     #     func=mdp.feet_air_time_positive_biped,
@@ -176,7 +176,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.45, 0.85), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.5, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -222,6 +222,7 @@ class ObservationsCfg:
         def __post_init__(self):
             self.enable_corruption = False#True
             self.concatenate_terms = True
+            self.history_length = 6
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
@@ -263,8 +264,8 @@ class CurriculumCfg:
 class ActionsCfg:
     """Action specifications for the MDP."""
 
-    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True,
-                                           clip = {".*_joint":(-10., 10.)})
+    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.25, use_default_offset=True,
+                                           clip = {".*_joint":(-100., 100.)})
 
 @configclass
 class CuriosityCfg:
@@ -294,7 +295,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         # post init of parent
         # Scene
         #self.curiosity=True
-        self.scene.robot = G1_29_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = G1_29_ANNEAL_23_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         #self.scene.contact_forces.history_length = 16
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG

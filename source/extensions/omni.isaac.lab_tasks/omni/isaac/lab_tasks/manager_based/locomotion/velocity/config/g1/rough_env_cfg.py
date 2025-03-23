@@ -26,7 +26,7 @@ from omni.isaac.lab_tasks.manager_based.locomotion.velocity.velocity_env_cfg imp
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG, G1_29_MINIMAL_CFG, G1_29_CFG  # isort: skip
+from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG, G1_29_MINIMAL_CFG, G1_29_CFG, G1_MIN_NOHAND_CFG  # isort: skip
 import omni.isaac.lab.terrains as terrain_gen
 
 FLAT_AND_ROUGH_CFG = terrain_gen.TerrainGeneratorCfg(
@@ -172,6 +172,8 @@ class TerminationsCfg:
         func=mdp.illegal_contact,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},
     )
+    height_low = DoneTerm(func=mdp.root_height_below_minimum, params={'minimum_height':0.45})
+    height_high = DoneTerm(func=mdp.root_height_above_maximum, params={'maximum_height':1.1})
 
 
 @configclass
@@ -213,11 +215,11 @@ class ObservationsCfg:
 
         # observation terms (order preserved)
         base_pos =ObsTerm(func=mdp.base_pos_z)
-        base_lin_vel_w = ObsTerm(func=mdp.root_lin_vel_w,noise=Unoise(n_min=-0.1, n_max=0.1))
-        base_ang_vel_w = ObsTerm(func=mdp.root_ang_vel_w,noise=Unoise(n_min=-0.2, n_max=0.2))
+        # base_lin_vel_w = ObsTerm(func=mdp.root_lin_vel_w,noise=Unoise(n_min=-0.1, n_max=0.1))
+        # base_ang_vel_w = ObsTerm(func=mdp.root_ang_vel_w,noise=Unoise(n_min=-0.2, n_max=0.2))
         base_lin_vel = ObsTerm(func=mdp.base_lin_vel,noise=Unoise(n_min=-0.1, n_max=0.1))
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel,noise=Unoise(n_min=-0.2, n_max=0.2))
-        projected_gravity = ObsTerm(func=mdp.projected_gravity,noise=Unoise(n_min=-0.05, n_max=0.05))
+        # projected_gravity = ObsTerm(func=mdp.projected_gravity,noise=Unoise(n_min=-0.05, n_max=0.05))
         base_quat = ObsTerm(func=mdp.root_quat_w,noise=Unoise(n_min=-0.05, n_max=0.05))
         joint_pos = ObsTerm(func=mdp.joint_pos,noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel = ObsTerm(func=mdp.joint_vel,noise=Unoise(n_min=-1.5, n_max=1.5))
@@ -376,15 +378,16 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     rewards: G1Rewards = G1Rewards()
     terminations: TerminationsCfg = TerminationsCfg()
     observations: ObservationsCfg = ObservationsCfg()
-    #events: SimEventCfg = SimEventCfg()
-    events: RealEventCfg = RealEventCfg()
+    events: SimEventCfg = SimEventCfg()
+    #events: RealEventCfg = RealEventCfg()
 
     def __post_init__(self):
         # post init of parent
         
         # Scene
-        self.scene.robot = G1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        #self.scene.robot = G1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         #self.scene.robot = G1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = G1_MIN_NOHAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         super().__post_init__()
         # Randomization

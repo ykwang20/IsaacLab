@@ -119,8 +119,8 @@ def position_tracking(env, command_name: str,  start_time: float,asset_cfg: Scen
     pos_error_square = torch.sum(torch.square(env.command_manager.get_command(command_name)[:, :2]
                             +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2]), dim=1)
     pos_error=torch.sqrt(pos_error_square)
-    print('pos error:',pos_error)
-    print('pos tracking reward:',1/(1+pos_error_square))
+    #print('pos error:',pos_error)
+    #print('pos tracking reward:',1/(1+pos_error_square))
     # print('pos command:',env.command_manager.get_command(command_name)[:, :2])
     # print('pos robot:',asset.data.root_pos_w[:, :2]-env.scene.env_origins[:,:2])
     # print('pos error square',pos_error_square)
@@ -152,10 +152,14 @@ def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityC
     # extract the used quantities (to enable type-hinting)
     asset = env.scene[asset_cfg.name]
     norm_vel=asset.data.root_lin_vel_w.norm(dim=1)
+    vel_x=asset.data.root_lin_vel_w[:,0]
     pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
                            +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
-    #print('wait penalty:',torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
-    return torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),
+    # print('norm vel:',norm_vel)
+    # print('vel x:',vel_x)
+    # print('pos error:',pos_error)
+    # print('wait penalty:',torch.where(torch.logical_and(vel_x<0.3, pos_error>0.2),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
+    return torch.where(torch.logical_and(vel_x<0.15, pos_error>0.2),
                        torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
 
 def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:

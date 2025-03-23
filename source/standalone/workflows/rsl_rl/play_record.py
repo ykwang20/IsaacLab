@@ -9,6 +9,7 @@
 
 import argparse
 
+
 from omni.isaac.lab.app import AppLauncher
 
 # local imports
@@ -49,6 +50,7 @@ from omni.isaac.lab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from omni.isaac.lab.utils.dict import print_dict
 
 import omni.isaac.lab_tasks  # noqa: F401
+import copy
 from omni.isaac.lab_tasks.utils import get_checkpoint_path, parse_env_cfg
 from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
     RslRlOnPolicyRunnerCfg,
@@ -117,6 +119,7 @@ def main():
     all_episodes_states = []
     max_episodes=500
     episode=0
+    total_terminated=0
     #simulate environment
     while simulation_app.is_running():
         # run everything in inference mode
@@ -125,8 +128,8 @@ def main():
             actions = policy(obs)
             
             # Add uniform action noise
-            #noise = torch.rand_like(actions) * 3 - 1.5  # Uniform noise in [-1.5,1.5]
-            noise = torch.rand_like(actions) * 0.2 - 0.1  # Uniform noise in [-1.5,1.5]
+            noise = torch.rand_like(actions) * 3 - 1.5  # Uniform noise in [-1.5,1.5]
+            #noise = torch.rand_like(actions) * 0.2 - 0.1  # Uniform noise in [-1.5,1.5]
             actions = actions + noise
             
             # Clip actions to ensure they remain within valid bounds
@@ -143,7 +146,7 @@ def main():
                 terminated=extra['terminated']
                 actions=env.env.action_manager.get_term('joint_pos').processed_actions
                 # print('rew',rew)
-                # print('terminated',terminated)
+                print('terminated',terminated)
                 # print(f"State: {state}")
                 # print(f"Actions: {actions}")
                 step_data = {
@@ -152,13 +155,18 @@ def main():
                 "reward": rew,
                 "terminated": terminated
             }
-                all_episodes_states.append(step_data)
+                all_episodes_states.append(copy.deepcopy(step_data))
                 print(f"Episode: {episode}")
+                # Count the number of True values in the 'terminated' tensor
+                true_count = terminated.sum()
+                print(f"Number of True values in 'terminated': {true_count}")
+                total_terminated+= true_count
             elif episode == max_episodes:
+                print(total_terminated)
                 all_episodes_states_array = np.array(all_episodes_states, dtype=object)
-                np.save("episodes_states_real.npy", all_episodes_states_array)
+                np.save("episodes_states_sim_23dof_1000.npy", all_episodes_states_array)
                 print("Episodes states saved")
-
+                
         if args_cli.video:
             timestep += 1
             # Exit the play loop after recording one video
@@ -170,6 +178,9 @@ def main():
 
 
 if __name__ == "__main__":
+    import random as rand
+    random_seed = 43
+    rand.seed(random_seed)
     # run the main function
     main()
     # close sim app
