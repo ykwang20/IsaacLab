@@ -24,7 +24,7 @@ from omni.isaac.lab_tasks.manager_based.locomotion.velocity.velocity_env_cfg imp
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG, G1_29_CFG,G1_29_MINIMAL_CFG,G1_29_MODIFIED_CFG,G1_29_ANNEAL_23_CFG # isort: skip
+from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG, G1_29_CFG,G1_29_MINIMAL_CFG,G1_29_MODIFIED_CFG,G1_29_ANNEAL_23_CFG,G1_29_ANNEAL_23_MODIFIED_CFG # isort: skip
 import omni.isaac.lab.terrains as terrain_gen
 import math
 import random
@@ -41,7 +41,7 @@ class G1Rewards:
                                   params={"command_name": "target_pos_e","start_time": 1})
     # position_tracking_cos = RewTerm(func=mdp.position_tracking_cos, weight=20.,
     #                               params={"command_name": "target_pos_e","start_time": 1})
-    wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-10,params={"command_name": "target_pos_e"}) #weight=-2
+    wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-2,params={"command_name": "target_pos_e"}) #weight=-2
     #move_in_direction = RewTerm(func=mdp.move_in_direction, weight=5.0,params={"command_name": "target_pos_e"})
     move_in_direction = RewTerm(func=mdp.move_in_direction, weight=10.0,params={"command_name": "target_pos_e"})
     #termination_penalty = RewTerm(func=mdp.contact_terminated, weight=-200.0)
@@ -86,8 +86,8 @@ class G1Rewards:
     #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
     # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,#weight=-0.05,
     #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,
-                            params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,
+    #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # feet_air_time = RewTerm(
     #     func=mdp.feet_air_time_positive_biped,
     #     weight=0.25,
@@ -106,7 +106,7 @@ class G1Rewards:
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
     #curiosity_rnd = RewTerm(func=mdp.curiosity, weight=200)
     #curiosity_cnt = RewTerm(func=mdp.curiosity_cnt, weight=2000)
-    joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-1,)
+    #joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-1,)
 
 
 # @configclass
@@ -241,7 +241,7 @@ class ObservationsCfg:
 
 
         def __post_init__(self):
-            self.enable_corruption = True
+            self.enable_corruption = False#True
             self.concatenate_terms = True
 
     # observation groups
@@ -295,7 +295,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         # post init of parent
         # Scene
         #self.curiosity=True
-        self.scene.robot = G1_29_ANNEAL_23_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = G1_29_ANNEAL_23_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         #self.scene.contact_forces.history_length = 16
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG

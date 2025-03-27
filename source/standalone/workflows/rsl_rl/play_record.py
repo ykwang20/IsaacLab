@@ -128,8 +128,8 @@ def main():
             actions = policy(obs)
             
             # Add uniform action noise
-            noise = torch.rand_like(actions) * 3 - 1.5  # Uniform noise in [-1.5,1.5]
-            #noise = torch.rand_like(actions) * 0.2 - 0.1  # Uniform noise in [-1.5,1.5]
+            #noise = torch.rand_like(actions) * 3 - 1.5  # Uniform noise in [-1.5,1.5]
+            noise = torch.rand_like(actions) * 0.2 - 0.1  # Uniform noise in [-1.5,1.5]
             actions = actions + noise
             
             # Clip actions to ensure they remain within valid bounds
@@ -164,7 +164,7 @@ def main():
             elif episode == max_episodes:
                 print(total_terminated)
                 all_episodes_states_array = np.array(all_episodes_states, dtype=object)
-                np.save("episodes_states_sim_23dof_1000.npy", all_episodes_states_array)
+                np.save("episodes_states_real_23dof.npy", all_episodes_states_array)
                 print("Episodes states saved")
                 
         if args_cli.video:

@@ -327,10 +327,15 @@ class LatentDynamicsModel(nn.Module):
 
         self.encoder = VAEEncoder(self.encoder_cfg, device=self.device)
         self.dynamics = GRUNetwork(self.dynamics_cfg, device=self.device)
+        #self.dynamics = MLPNetwork(self.dynamics_cfg, device=self.device)
         self.predictor = MLPNetwork(self.predictor_cfg, device=self.device)
 
         # Optionally freeze GRU from the start if you only want to train VAE first:
         # for param in self.dynamics.parameters():
+        #     param.requires_grad = False
+        # for param in self.predictor.parameters():
+        #     param.requires_grad = False
+        # for param in self.encoder.parameters():
         #     param.requires_grad = False
 
     def vae_forward(self, obs):
@@ -371,6 +376,12 @@ class LatentDynamicsModel(nn.Module):
         dynamics_input = torch.cat([latent, actions], dim=-1)
         next_latent = self.dynamics(dynamics_input)
         return next_latent
+    
+    def reconstruct(self, latent):
+        """
+        Reconstruct the observation from latent space.
+        """
+        return self.predictor(latent)
 
 
 #############################################
@@ -452,12 +463,16 @@ class LatentDynamicsLearner:
         total_loss = prediction_loss + self.cfg["kl_weight"] * kl_loss
         
         eps = 1e-6
-        rel_pred_error = ((outputs["prediction"] - batch["prediction_targets"]).norm(dim=-1) / (batch["prediction_targets"].norm(dim=-1)+eps)).mean()
+        rel_recon_error = ((outputs["prediction"] - batch["prediction_targets"]).norm(dim=-1) / (batch["prediction_targets"].norm(dim=-1)+eps)).mean()
+        # print('outputs["prediction"].shape:', outputs["prediction"].shape)
+        # print('batch["prediction_targets"].shape:', batch["prediction_targets"].shape)
+        rel_z_recon_error = ((outputs["prediction"][:,0] - batch["prediction_targets"][:,0]).abs() / (batch["prediction_targets"][:,0]+eps)).mean()
         results = {
             "total_loss": total_loss.item(),
             "prediction_loss": prediction_loss.item(),
             "kl_loss": kl_loss.item(),
-            "relative_prediction_error": rel_pred_error.item()
+            "relative_prediction_error": rel_recon_error.item(),
+            "rel_z_recon_error": rel_z_recon_error.item(),
         }
         return total_loss, results
 
@@ -506,6 +521,16 @@ class LatentDynamicsLearner:
             with torch.no_grad():
                 _, vae_results = self.vae_loss(batch)
             total_loss = self.cfg["dynamics_weight"] * dynamics_loss
+            
+        rel_z_pred_error = ((self.model.reconstruct(next_latent_pred)[:,:,0]-next_obs[:,:,0]).abs()*valid_for_dyn).sum()/((next_obs[:,:,0]*valid_for_dyn).sum())
+        abs_z_pred_error = ((self.model.reconstruct(next_latent_pred)[:,:,0]-next_obs[:,:,0]).abs()*valid_for_dyn).sum() / valid_dyn_count
+        # print('abs_z_recon_error shape', abs_z_pred_error.shape)
+        # print('abs_z_recon_error:', abs_z_pred_error)
+
+        # print('next_obs_shape:', next_obs.shape)
+        # print(f"rel_z_recon_error: {rel_z_recon_error}")
+        # print('next_recon_latent:', self.model.reconstruct(next_latent_pred)[0,:3,0])
+        # print('next_obs:', next_obs[0,:3,0])
 
         # For logging, you might want relative errors as well:
         # e.g. relative_dynamics_error or so. Keep it consistent with your style:
@@ -514,7 +539,9 @@ class LatentDynamicsLearner:
             "dynamics_loss": dynamics_loss.item(),
             "prediction_loss": vae_results["prediction_loss"],
             "kl_loss": vae_results["kl_loss"],
-            "relative_dynamics_error": rel_dyn_error.item()
+            "relative_dynamics_error": rel_dyn_error.item(),
+            "rel_z_pred_error": rel_z_pred_error.item(),
+            "abs_z_pred_error": abs_z_pred_error.item()
         }
         return total_loss, results
 
@@ -594,7 +621,7 @@ class LatentDynamicsLearner:
         5) Print out averages in terminal
         """
         required_keys = ["total_loss", "dynamics_loss", "prediction_loss", "kl_loss", "grad_norm", 
-                         "relative_dynamics_error", "relative_prediction_error"]
+                         "relative_dynamics_error", "relative_prediction_error", "rel_z_recon_error", "rel_z_pred_error", "abs_z_recon_error"]
 
         train_list = results["train_results"]  # list of dict
         eval_list = results["eval_results"]    # list of dict or None
@@ -668,12 +695,13 @@ class LatentDynamicsLearner:
     def load(self, path: str, load_optimizer: bool = True):
         loaded_dict = torch.load(path)
         self.model.load_state_dict(loaded_dict["model_state_dict"])
-        filtered_dict = {k: v for k, v in loaded_dict["model_state_dict"].items() if (not "dynamics" in k)}
-        print(f"Filtered keys: {filtered_dict.keys()}")
-        self.model.load_state_dict(filtered_dict,strict=False)
+        # filtered_dict = {k: v for k, v in loaded_dict["model_state_dict"].items() if (not "dynamics" in k)}
+        # print(f"Filtered keys: {filtered_dict.keys()}")
+        # self.model.load_state_dict(filtered_dict,strict=False)
         # if load_optimizer:
         #     self.optimizer.load_state_dict(loaded_dict["optimizer_state"])
         #self.current_epoch = loaded_dict["epoch"]
+        print(f"Model loaded from {path}")
 
 
 #############################################
@@ -687,6 +715,9 @@ class MLPCfg:
     activation = "crelu"
     activation_at_end = [True, False]
     name = "Network"
+
+    def __post_init__(self):
+        pass
 
 @configclass
 class GRUCfg:
@@ -716,6 +747,7 @@ class LatentModelCfg:
     seq_len = 12
     encoder_cfg = MLPCfg()
     dynamics_cfg = GRUCfg()
+    #dynamics_cfg = MLPCfg()
     predictor_cfg = MLPCfg()
 
     def __post_init__(self):
@@ -736,10 +768,10 @@ class LatentModelCfg:
 class LatentLearnerCfg:
     use_tune = False
     device = 'cuda:0'
-    dataset_path = "episodes_states_sim_23dof.npy"
+    dataset_path = "episodes_states_real_23dof.npy"
     eval_pct = 0.2
     logger = "tensorboard"
-    log_dir = "./logs/tune_test_separate"  # base log directory
+    log_dir = "logs/test_separate"  # base log directory
     save_interval = 10
     eval_interval = 2
     seq_len = 12
@@ -752,19 +784,19 @@ class LatentLearnerCfg:
     dynamics_loss_to_encoder = False
 
     # For demonstration, we add new fields:
-    vae_epoches = 500
+    vae_epoches = 0#200
     dyn_epoches = 1000
     epoches = 50
 
     # define keys
     obs_keys = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_quat', 'joint_pos', ]#'joint_vel']
-    pred_targets_keys = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_quat',]# 'joint_pos',]# 'joint_vel']
+    pred_targets_keys = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_quat', 'joint_pos',]# 'joint_vel']
 
     act_dim =23# 37
     obs_dim = 57 # place holder. Automatically adjusted with obs keys
     pred_targets_dim = 7 # place holder. Automatically adjusted with pred keys
     latent_dim = 32
-    gru_hidden_dim = 32
+    gru_hidden_dim = 128#32
     model_cfg = LatentModelCfg()
 
     def __post_init__(self):
@@ -788,6 +820,10 @@ class LatentLearnerCfg:
                 activation_at_end=[True, True, False],
                 activation="crelu"
             ),
+            # dynamics_cfg=MLPCfg(
+            #     #hidden_dim=self.gru_hidden_dim
+            #     hidden_dims=[256, 128],
+            # )
             dynamics_cfg=GRUCfg(
                 hidden_dim=self.gru_hidden_dim
             )
@@ -835,9 +871,10 @@ if __name__ == "__main__":
             metric="eval_total_loss_ave",  # Metric to optimize
             mode="min",  # Mode for optimization (minimize or maximize)
             num_samples=2,
-            max_concurrent_trials=8
+            max_concurrent_trials=6,
+            verbose=1,
         )
-        print("Best config: ", analysis.get_best_config(metric="eval_total_loss", mode="min", scope="all"))
+        print("Best config: ", analysis.get_best_config(metric="eval_total_loss_ave", mode="min", scope="all"))
         df = analysis.dataframe()
         df.to_csv(f"{root_log_dir}/tune_results.csv", index=False)
     else:

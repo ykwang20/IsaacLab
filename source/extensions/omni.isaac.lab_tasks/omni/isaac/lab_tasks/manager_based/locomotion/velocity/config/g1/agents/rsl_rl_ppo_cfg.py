@@ -16,7 +16,7 @@ class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 29000#19000#3000
     save_interval = 500#50
-    experiment_name = "g1_box"
+    experiment_name = "g1_box_23dof"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
@@ -51,7 +51,7 @@ class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
             # -- Network parameters
             # note: if -1, then the network will use dimensions of the observation
-            "num_outputs": 1,  # number of outputs of RND network
+            "num_outputs": 16,  # number of outputs of RND network
             "predictor_hidden_dims": [256,128], # hidden dimensions of predictor network
             "target_hidden_dims": [256,128],  # hidden dimensions of target network
         }

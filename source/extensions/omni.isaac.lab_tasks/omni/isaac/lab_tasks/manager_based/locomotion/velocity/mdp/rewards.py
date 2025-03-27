@@ -147,19 +147,30 @@ def position_tracking_cos(env, command_name: str,  start_time: float,asset_cfg: 
     return torch.where(episode_time>start_time,rew,torch.zeros_like(rew))
     
 
+# def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+#     """Penalty for waiting."""
+#     # extract the used quantities (to enable type-hinting)
+#     asset = env.scene[asset_cfg.name]
+#     norm_vel=asset.data.root_lin_vel_w.norm(dim=1)
+#     vel_x=asset.data.root_lin_vel_w[:,0]
+#     pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
+#                            +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
+#     # print('norm vel:',norm_vel)
+#     # print('vel x:',vel_x)
+#     # print('pos error:',pos_error)
+#     # print('wait penalty:',torch.where(torch.logical_and(vel_x<0.3, pos_error>0.2),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
+#     return torch.where(torch.logical_and(vel_x<0.15, pos_error>0.2),
+#                        torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
+
 def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalty for waiting."""
     # extract the used quantities (to enable type-hinting)
     asset = env.scene[asset_cfg.name]
     norm_vel=asset.data.root_lin_vel_w.norm(dim=1)
-    vel_x=asset.data.root_lin_vel_w[:,0]
     pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
                            +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
-    # print('norm vel:',norm_vel)
-    # print('vel x:',vel_x)
-    # print('pos error:',pos_error)
-    # print('wait penalty:',torch.where(torch.logical_and(vel_x<0.3, pos_error>0.2),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
-    return torch.where(torch.logical_and(vel_x<0.15, pos_error>0.2),
+    #print('wait penalty:',torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
+    return torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),
                        torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
 
 def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:

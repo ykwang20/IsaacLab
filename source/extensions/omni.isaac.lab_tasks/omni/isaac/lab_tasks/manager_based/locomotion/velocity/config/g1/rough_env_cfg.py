@@ -378,8 +378,8 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     rewards: G1Rewards = G1Rewards()
     terminations: TerminationsCfg = TerminationsCfg()
     observations: ObservationsCfg = ObservationsCfg()
-    events: SimEventCfg = SimEventCfg()
-    #events: RealEventCfg = RealEventCfg()
+    #events: SimEventCfg = SimEventCfg()
+    events: RealEventCfg = RealEventCfg()
 
     def __post_init__(self):
         # post init of parent

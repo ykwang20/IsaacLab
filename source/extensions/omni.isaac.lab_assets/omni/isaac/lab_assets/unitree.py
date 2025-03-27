@@ -788,6 +788,8 @@ G1_29_ANNEAL_23_CFG = ArticulationCfg(
         ),
     },
 )
+G1_29_ANNEAL_23_MODIFIED_CFG= G1_29_ANNEAL_23_CFG.copy()
+G1_29_ANNEAL_23_MODIFIED_CFG.spawn.usd_path = "source/asset/g1/g1_29dof_anneal_23dof_modified.usd"
 
 G1_29_MINIMAL_CFG = G1_29_CFG.copy()
 G1_29_MINIMAL_CFG.spawn.usd_path = "source/asset/g1/g1_29dof_feetmod_minimal.usd"
