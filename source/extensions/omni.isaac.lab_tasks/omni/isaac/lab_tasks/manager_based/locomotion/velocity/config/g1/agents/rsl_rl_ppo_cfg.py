@@ -17,7 +17,7 @@ class G1VelBoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     max_iterations = 29000#19000#3000
     save_interval = 500#50
     experiment_name = "g1_vel_box_23dof"
-    empirical_normalization = False
+    empirical_normalization = True#False
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
         actor_hidden_dims=[512, 256, 128],
