@@ -147,6 +147,8 @@ class JointAction(ActionTerm):
 
     def reset(self, env_ids: Sequence[int] | None = None) -> None:
         self._raw_actions[env_ids] = 0.0
+        self._processed_actions[env_ids] = 0.0
+        self.last_processed_actions[env_ids] = 0.0
 
 
 class JointPositionAction(JointAction):

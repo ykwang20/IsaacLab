@@ -37,24 +37,24 @@ class G1VelBoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         lam=0.95,
         desired_kl=0.01,
         max_grad_norm=1.0,
-        rnd_cfg= {
-            "weight": 1000,  # initial weight of the RND reward
+        # rnd_cfg= {
+        #     "weight": 1000,  # initial weight of the RND reward
 
-            # note: This is a dictionary with a required key called "mode".
-            #   Please check the RND module for more information.
-            "weight_schedule": None,
-            "reward_normalization": True,  # whether to normalize RND reward
-            "state_normalization": True,  # whether to normalize RND state observations
+        #     # note: This is a dictionary with a required key called "mode".
+        #     #   Please check the RND module for more information.
+        #     "weight_schedule": None,
+        #     "reward_normalization": True,  # whether to normalize RND reward
+        #     "state_normalization": True,  # whether to normalize RND state observations
 
-            # -- Learning parameters
-            #"learning_rate": 0.001,  # learning rate for RND
+        #     # -- Learning parameters
+        #     #"learning_rate": 0.001,  # learning rate for RND
 
-            # -- Network parameters
-            # note: if -1, then the network will use dimensions of the observation
-            "num_outputs": 16,  # number of outputs of RND network
-            "predictor_hidden_dims": [256,128], # hidden dimensions of predictor network
-            "target_hidden_dims": [256,128],  # hidden dimensions of target network
-        }
+        #     # -- Network parameters
+        #     # note: if -1, then the network will use dimensions of the observation
+        #     "num_outputs": 16,  # number of outputs of RND network
+        #     "predictor_hidden_dims": [256,128], # hidden dimensions of predictor network
+        #     "target_hidden_dims": [256,128],  # hidden dimensions of target network
+        # }
     )
     
 
@@ -64,7 +64,7 @@ class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     max_iterations = 29000#19000#3000
     save_interval = 500#50
     experiment_name = "g1_box_23dof"
-    empirical_normalization = False
+    empirical_normalization = True#False
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
         actor_hidden_dims=[512, 256, 128],
@@ -84,24 +84,24 @@ class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         lam=0.95,
         desired_kl=0.01,
         max_grad_norm=1.0,
-        rnd_cfg= {
-            "weight": 1000,  # initial weight of the RND reward
+        # rnd_cfg= {
+        #     "weight": 100,  # initial weight of the RND reward
 
-            # note: This is a dictionary with a required key called "mode".
-            #   Please check the RND module for more information.
-            "weight_schedule": None,
-            "reward_normalization": True,  # whether to normalize RND reward
-            "state_normalization": True,  # whether to normalize RND state observations
+        #     # note: This is a dictionary with a required key called "mode".
+        #     #   Please check the RND module for more information.
+        #     "weight_schedule": None,
+        #     "reward_normalization": True,  # whether to normalize RND reward
+        #     "state_normalization": True,  # whether to normalize RND state observations
 
-            # -- Learning parameters
-            #"learning_rate": 0.001,  # learning rate for RND
+        #     # -- Learning parameters
+        #     #"learning_rate": 0.001,  # learning rate for RND
 
-            # -- Network parameters
-            # note: if -1, then the network will use dimensions of the observation
-            "num_outputs": 16,  # number of outputs of RND network
-            "predictor_hidden_dims": [256,128], # hidden dimensions of predictor network
-            "target_hidden_dims": [256,128],  # hidden dimensions of target network
-        }
+        #     # -- Network parameters
+        #     # note: if -1, then the network will use dimensions of the observation
+        #     "num_outputs": 1,  # number of outputs of RND network
+        #     "predictor_hidden_dims": [256,128], # hidden dimensions of predictor network
+        #     "target_hidden_dims": [256,128],  # hidden dimensions of target network
+        # }
     )
     
 
