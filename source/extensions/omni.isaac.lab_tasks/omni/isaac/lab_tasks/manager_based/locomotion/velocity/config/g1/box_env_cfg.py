@@ -37,7 +37,7 @@ class G1Rewards:
     # -- task
     #track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)})
     #track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_exp, weight=1.5, params={"command_name": "base_velocity", "std": math.sqrt(0.25)})
-    position_tracking = RewTerm(func=mdp.position_tracking, weight=2.,
+    position_tracking = RewTerm(func=mdp.position_tracking, weight=4.,
                                   params={"command_name": "target_pos_e","start_time": 0})
     # position_tracking_cos = RewTerm(func=mdp.position_tracking_cos, weight=20.,
     #                               params={"command_name": "target_pos_e","start_time": 1})
@@ -59,7 +59,7 @@ class G1Rewards:
     #torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-4,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-0.1, params={"soft_ratio": 1., "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     #torque_lim_penalty=RewTerm(func=mdp.applied_torque_limits, weight=-0.002,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
-    joint_acc_penalty=RewTerm(func=mdp.joint_acc_l2, weight=-2e-8,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    joint_acc_penalty=RewTerm(func=mdp.joint_acc_l2, weight=-2e-9,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     base_acc_penalty=RewTerm(func=mdp.base_lin_ang_acc, weight=-0.001)
     feet_acc_penalty=RewTerm(func=mdp.feet_acc, weight=-0.00002)
     rigid_body_acc_penalty=RewTerm(func=mdp.body_lin_acc_l2, weight=-0.0002,params={"asset_cfg" :SceneEntityCfg("robot", 
