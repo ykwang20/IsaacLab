@@ -164,7 +164,7 @@ def main():
             elif episode == max_episodes:
                 print(total_terminated)
                 all_episodes_states_array = np.array(all_episodes_states, dtype=object)
-                np.save("episodes_states_real_23dof.npy", all_episodes_states_array)
+                np.save("episodes_states_real_23dof_euler.npy", all_episodes_states_array)
                 print("Episodes states saved")
                 
         if args_cli.video:

@@ -48,12 +48,12 @@ class G1Rewards:
     #success_rew = RewTerm(func=mdp.stepped_terminated, weight=20000)
     #air_term_penalty = RewTerm(func=mdp.air_terminated, weight=-1000)
     #termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.)
-    # success_bonus = RewTerm(
-    #     func=mdp.success_bonus,
-    #     weight=20000,#10000#400.0,
-    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
-    #     "success_distance": 0.06,}
-    # )
+    success_bonus = RewTerm(
+        func=mdp.success_bonus,
+        weight=2000,#400.0,
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
+        "success_distance": 0.06,}
+    )
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.00001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-6,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     #torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-4,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
@@ -86,8 +86,8 @@ class G1Rewards:
     #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
     # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,#weight=-0.05,
     #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-    # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,
-    #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,
+                            params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # feet_air_time = RewTerm(
     #     func=mdp.feet_air_time_positive_biped,
     #     weight=0.25,
@@ -155,9 +155,9 @@ class TerminationsCfg:
     # )
     # success = DoneTerm(func=mdp.stepped_on,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"), "threshold": 1.0,
     #                   "platform_width": 3,"reached_distance": 0.06,} )
-    # max_consecutive_success = DoneTerm(
-    #     func=mdp.max_consecutive_success, params={"num_success": 1, }#params={"num_success": 50, }
-    # )
+    max_consecutive_success = DoneTerm(
+        func=mdp.max_consecutive_success, params={"num_success": 1, }#params={"num_success": 50, }
+    )
     max_contact= DoneTerm(func=mdp.max_contact_force, 
                             params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*"]), "threshold": 2000.0})
     # on_air= DoneTerm(func=mdp.on_air,params={"sensor_cfg":
@@ -176,7 +176,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.6, 0.8), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.5, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
