@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1" #"0, 1, 2"
 
 import datetime
 import numpy as np
@@ -9,115 +9,178 @@ from torch.utils.data import Dataset, DataLoader, random_split
 from omni.isaac.lab.utils import configclass
 from rsl_rl.utils import store_code_state, resolve_nn_activation
 from collections import defaultdict
+import argparse
 
 #############################################
 # Dataset remains the same
 #############################################
+
+KEY_DIMENSIONS = {
+    "base_pos": 1,          # z coord position
+    "base_lin_vel": 3,       # 3D linear velocity
+    "base_ang_vel": 3,       # 3D angular velocity
+    "base_lin_vel_w": 3,       # 3D linear velocity world
+    "base_ang_vel_w": 3,       # 3D angular velocity world
+    "base_quat": 4,          # Quaternion (4D)
+    "joint_pos": 37,         # Joint positions
+    "joint_vel": 37,         # Joint velocities
+    "projected_gravity": 3,  # Projected gravity vector (3D)
+}
+
 class TrajectoryDataset(Dataset):
-    def __init__(self, data_path: str, pred_targets_keys=["reward", "terminated"], seq_len=1):
+    def __init__(self, data_path: str, obs_keys, pred_targets_keys, seq_len=24):
         self.data = np.load(data_path, allow_pickle=True).tolist()
-        self.pred_targets_keys = pred_targets_keys or []
+        self.obs_keys = obs_keys
+        self.pred_targets_keys = pred_targets_keys
         self.num_agents = self.data[0]['action'].shape[0]
-        self.T = len(self.data)  # total timesteps in the dataset
+        self.T = len(self.data)
         self.seq_len = seq_len
 
-        # Process each field directly into shape (T, num_agents, feature_dim)
-        self._preprocess_dataset(process_fn=[self._makekey_time_to_terminate, self._makekey_termination_in_seq])
-        self.observations = self._process_observations()  # shape: (T, num_agents, obs_feature_dim)
-        self.actions = self._process_actions()            # shape: (T, num_agents, action_dim)
-        self.targets = self._process_prediction_targets()   # shape: (T, num_agents, target_feature_dim)
-        self.next_observations = self._process_next_obs()   # shape: (T, num_agents, obs_feature_dim)
+        # Process core data fields
+        self.observations = self._process_observations()
+        self.actions = self._process_actions()
+        self.targets = self._process_prediction_targets()
+        self.next_observations = self._process_next_obs()
+        self.terminated = self._process_terminated() # (T, agents)
 
-    def _preprocess_dataset(self, process_fn:list):
-        for fn in process_fn:
-            fn()
+        # Build valid subsequences
+        self.samples = []
+        self._build_subsequences()
+        self._validate_dataset()
 
-    def _makekey_time_to_terminate(self):
-        time_to_terminate = torch.zeros((self.T, self.num_agents), dtype=torch.float32)
-        terminated_flags = torch.stack([d["terminated"] for d in self.data], dim=0)  # shape: (T, num_agents)
+    def _build_subsequences(self):
+        """Build subsequences with terminated states as final step"""
         for agent_idx in range(self.num_agents):
-            steps_left = 0
-            for t in range(self.T - 1, -1, -1):
-                if terminated_flags[t, agent_idx]:
-                    steps_left = 0
-                else:
-                    steps_left += 1
-                time_to_terminate[t, agent_idx] = steps_left
-        time_to_terminate = torch.clamp(time_to_terminate, max=self.seq_len) / self.seq_len
-        for t in range(self.T):
-            self.data[t]["time_to_terminate"] = time_to_terminate[t].to(torch.float32)
+            t = 0
+            while t < self.T:
+                subsequence = {
+                    'obs': [],
+                    'action': [],
+                    'next_obs': [],
+                    'prediction_targets': [],
+                    'terminated': [],
+                    'valid_mask': []
+                }
 
-    def _makekey_termination_in_seq(self):
-        terminated_flags = torch.stack([d["terminated"] for d in self.data], dim=0)
-        T, num_agents = terminated_flags.shape
-        future_term = torch.zeros((T, num_agents), dtype=torch.bool)
-        for t in range(T):
-            end_t = min(t + self.seq_len, T)
-            future_term[t] = terminated_flags[t:end_t].any(dim=0)
-            self.data[t]["terminate_in_seq"] = future_term[t].to(torch.float32)
+                # Collect steps until termination or seq_len
+                valid_steps = 0
+                while valid_steps < self.seq_len and t < self.T:
+                    current_terminated = self.terminated[t, agent_idx]
 
+                    # Always include current step
+                    subsequence['obs'].append(self.observations[t, agent_idx])
+                    subsequence['action'].append(self.actions[t, agent_idx])
+                    subsequence['next_obs'].append(self.next_observations[t, agent_idx])
+                    subsequence['prediction_targets'].append(self.targets[t, agent_idx])
+                    subsequence['terminated'].append(current_terminated)
+                    subsequence['valid_mask'].append(True)
+                    
+                    valid_steps += 1
+                    t += 1
+
+                    # Stop after including terminated step
+                    if current_terminated:
+                        break
+
+                if valid_steps == 0:
+                    continue
+
+                # Pad the subsequence
+                padded_sample = self._pad_subsequence(subsequence, valid_steps)
+                self.samples.append(padded_sample)
+
+    def _pad_subsequence(self, subsequence, valid_steps):
+        """Pad subsequence to seq_len with proper masking"""
+        padded = {
+            'obs': torch.zeros(self.seq_len, self.observations.shape[-1]),
+            'action': torch.zeros(self.seq_len, self.actions.shape[-1]),
+            'next_obs': torch.zeros(self.seq_len, self.observations.shape[-1]),
+            'prediction_targets': torch.zeros(self.seq_len, self.targets.shape[-1]),
+            'terminated': torch.zeros(self.seq_len, dtype=torch.bool),
+            'valid_mask': torch.zeros(self.seq_len, dtype=torch.bool)
+        }
+
+        # Copy valid data
+        for key in ['obs', 'action', 'next_obs', 'prediction_targets', 'terminated']:
+            padded[key][:valid_steps] = torch.stack(subsequence[key])
+        
+        padded['valid_mask'][:valid_steps] = True
+
+        return padded
+
+    def _validate_dataset(self):
+        """Ensure terminated states are properly included"""
+        for sample in self.samples:
+            valid_steps = sample['valid_mask'].sum().item()
+            terminated_steps = sample['terminated'].sum().item()
+            
+            assert valid_steps > 0, "Empty sequence found"
+            if terminated_steps > 0:
+                # Termination should only be in last valid step
+                assert sample['terminated'][valid_steps-1], "Termination must be final step"
+                assert valid_steps <= self.seq_len, "Invalid termination position"
+
+
+    # -- The data processing methods are the same as before (just simplified) --
     def _process_observations(self):
+        # shape => (T, num_agents, obs_dim)
         obs_list = []
         for d in self.data:
             state = d["state"]
-            keys = list(state.keys())
-            features = [state[k].view(self.num_agents, -1) for k in keys]
-            obs_t = torch.cat(features, dim=-1)
-            obs_list.append(obs_t)
-        return torch.stack(obs_list, dim=0).cpu().to(torch.float32)
+            feats = [state[k].view(self.num_agents, -1) for k in self.obs_keys]
+            obs_list.append(torch.cat(feats, dim=-1))
+        return torch.stack(obs_list, dim=0).float()
 
     def _process_actions(self):
-        action_list = [d["action"] for d in self.data]
-        return torch.stack(action_list, dim=0).cpu().to(torch.float32)
+        # shape => (T, num_agents, act_dim)
+        return torch.stack([d["action"] for d in self.data], dim=0).float()
 
     def _process_prediction_targets(self):
-        targets_list = []
+        # shape => (T, num_agents, target_dim)
+        t_list = []
         for d in self.data:
-            components = []
+            comps = []
             for key in self.pred_targets_keys:
                 if key in d:
                     comp = d[key].view(self.num_agents, -1)
                 elif "state" in d and key in d["state"]:
                     comp = d["state"][key].view(self.num_agents, -1)
                 else:
-                    raise KeyError(f"Key '{key}' not found in the transition data.")
-                components.append(comp)
-            targets_t = torch.cat(components, dim=-1)
-            targets_list.append(targets_t)
-        return torch.stack(targets_list, dim=0).cpu().to(torch.float32)
+                    raise KeyError(f"Key '{key}' not found in data.")
+                comps.append(comp)
+            t_list.append(torch.cat(comps, dim=-1))
+        return torch.stack(t_list, dim=0).float()
 
     def _process_next_obs(self):
+        # shape => (T, num_agents, obs_dim)
+        # shift by 1
         next_obs = torch.zeros_like(self.observations)
         next_obs[:-1] = self.observations[1:]
         next_obs[-1] = self.observations[-1]
         return next_obs
 
+    def _process_terminated(self):
+        # shape => (T, num_agents)
+        arr = [d["terminated"] for d in self.data]
+        return torch.stack(arr, dim=0).bool()
+
     def __len__(self):
-        trajectories_per_agent = self.T - self.seq_len + 1
-        return self.num_agents * trajectories_per_agent
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        trajectories_per_agent = self.T - self.seq_len + 1
-        agent = idx // trajectories_per_agent
-        start_time = idx % trajectories_per_agent
-
-        sample = {
-            'obs': self.observations[start_time:start_time + self.seq_len, agent, :],
-            'action': self.actions[start_time:start_time + self.seq_len, agent, :],
-            'next_obs': self.next_observations[start_time:start_time + self.seq_len, agent, :],
-            'prediction_targets': self.targets[start_time:start_time + self.seq_len, agent, :],
-        }
-        return sample
+        return self.samples[idx]
 
     def __repr__(self):
         info = [
             "Dataset Summary:",
             f"State key: {self.data[0]['state'].keys()}",
+            f"State key shapes: {[(key, self.data[0]['state'][key].shape) for key in self.data[0]['state'].keys()]}"
             f"Total sequences: {len(self)}",
             f"Sequence Length: {self.seq_len}",
             f"Observations shape: {self.observations.shape}",
             f"Actions shape: {self.actions.shape}",
-            f"Prediction Targets shape: {self.targets.shape}"
+            f"Prediction Targets shape: {self.targets.shape}",
+            f"Terminated shape: {self.terminated.shape}"
         ]
         return "\n".join(info)
 
@@ -134,7 +197,6 @@ class MLPNetwork(nn.Module):
         activation_at_end = cfg["activation_at_end"]
         name = cfg.get("name", None)
         activation = resolve_nn_activation(activation)
-        
         layers = []
         current_in_dim = input_dim
         for layer_index in range(len(hidden_dims)):
@@ -159,15 +221,14 @@ class GRUNetwork(nn.Module):
         hidden_dim = cfg["hidden_dim"]
         name = cfg.get("name", None)
         self.gru = nn.GRU(
-            input_size = cfg["input_dim"],
-            hidden_size = hidden_dim,
-            num_layers = num_layers,
-            dropout= cfg.get("dropout", 0.0) if num_layers > 1 else 0,
+            input_size=cfg["input_dim"],
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            dropout=cfg.get("dropout", 0.0) if num_layers > 1 else 0,
             bidirectional=False,
             batch_first=True
         )
         self.fc = MLPNetwork(cfg["fc_cfg"], device=device)
-
         self.to(device)
         print(f"{name} GRU Network initialized:\nGRU: {self.gru}\nFC: {self.fc}")
 
@@ -178,13 +239,9 @@ class GRUNetwork(nn.Module):
 
 
 class VAEEncoder(nn.Module):
-    def __init__(self, cfg:dict, device:str):
-        """
-        Wraps a base encoder network and outputs both a mean and log variance.
-        """
+    def __init__(self, cfg: dict, device: str):
         super().__init__()
         self.base_encoder = MLPNetwork(cfg, device=device)
-        # Two separate linear layers to predict mean and logvar from the encoder’s output.
         self.fc_mu = nn.Linear(cfg['output_dim'], cfg['output_dim'], device=device)
         self.fc_logvar = nn.Linear(cfg['output_dim'], cfg['output_dim'], device=device)
 
@@ -194,49 +251,36 @@ class VAEEncoder(nn.Module):
         logvar = self.fc_logvar(h)
         return mu, logvar
 
-
 class LatentDynamicsModel(nn.Module):
     def __init__(self, cfg: dict, **kwargs):
         super().__init__()
-        
         self.device = cfg["device"]
         self.encoder_cfg = cfg["encoder_cfg"]
         self.dynamics_cfg = cfg["dynamics_cfg"]
         self.predictor_cfg = cfg.get("predictor_cfg", None)
-        
-        # Create a VAE encoder
         self.encoder = VAEEncoder(self.encoder_cfg, device=self.device)
-        
-        # Dynamics core remains the same
         self.dynamics = GRUNetwork(self.dynamics_cfg, device=self.device)
-        
-        # Use predictor as the decoder for reconstruction
         self.predictor = MLPNetwork(self.predictor_cfg, device=self.device)
+        for param in self.dynamics.parameters():
+            param.requires_grad = False
 
     def forward(self, obs, actions):
-        # VAE encoding: get mean and log variance and sample latent vector using reparameterization
         mu, logvar = self.encoder(obs)
         std = torch.exp(0.5 * logvar)
         epsilon = torch.randn_like(std)
         z = mu + std * epsilon
-        
-        # Dynamics prediction from the latent and actions
         dynamics_input = torch.cat([z, actions], dim=-1)
         next_latent_pred = self.dynamics(dynamics_input)
-        
-        # Reconstruction of the observation from the latent
-        predction = self.predictor(z)
-        
+        prediction = self.predictor(z)
         return {
             "mu": mu,
             "logvar": logvar,
             "latent": z,
             "next_latent_pred": next_latent_pred,
-            "prediction": predction
+            "prediction": prediction
         }
     
     def latent(self, obs):
-        # For evaluation, use the mean of the latent distribution
         mu, _ = self.encoder(obs)
         return mu
     
@@ -246,7 +290,7 @@ class LatentDynamicsModel(nn.Module):
         return next_latent
 
 #############################################
-# Modified LatentDynamicsLearner including KL loss
+# LatentDynamicsLearner (kept clean from Tune specifics)
 #############################################
 class LatentDynamicsLearner:
     def __init__(self, cfg, **kwargs):
@@ -255,68 +299,88 @@ class LatentDynamicsLearner:
         full_dataset = TrajectoryDataset(
             cfg["dataset_path"],
             pred_targets_keys=cfg["pred_targets_keys"],
+            obs_keys=cfg["obs_keys"],
             seq_len=self.seq_len
         )
         print(full_dataset)
-        
-        train_size = int((1-self.cfg["eval_pct"]) * len(full_dataset))
+        train_size = int((1 - self.cfg["eval_pct"]) * len(full_dataset))
         eval_size = len(full_dataset) - train_size
         self.train_dataset, self.eval_dataset = random_split(full_dataset, [train_size, eval_size])
-        
         self.train_dataloader = DataLoader(self.train_dataset, batch_size=cfg["batch_size"], shuffle=True)
         self.eval_dataloader = DataLoader(self.eval_dataset, batch_size=cfg["batch_size"], shuffle=False)
-        
         self.device = cfg["device"]
         self.learning_rate = cfg["learning_rate"]
         self.current_epoch = 0
-
         self.model_cfg = cfg["model_cfg"]
         self.model = LatentDynamicsModel(self.model_cfg)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self.log_dir = cfg["log_dir"]
-        
+
     def loss(self, batch):
         obs = batch['obs']
         actions = batch['action']
         next_obs = batch['next_obs']
-        
+        terminated = batch['terminated']  # Assuming 'terminated' is part of the batch
+        valid_mask = batch["valid_mask"]
+
         outputs = self.model(obs, actions)
-        
         with torch.no_grad():
             latent = self.model.latent(obs)
             next_latent_target = self.model.latent(next_obs)
-        
-        # Dynamics loss (latent consistency)
+
         if self.cfg["dynamics_loss_to_encoder"]:
             next_latent_pred = outputs["next_latent_pred"]
         else:
             next_latent_pred = self.model.next_latent(latent, actions)
 
-        dynamics_loss = torch.mean(
-            torch.sum(nn.MSELoss(reduction='none')(next_latent_pred, next_latent_target), dim=1))
+        # Create a mask for non-terminated steps
+        non_terminated_mask = ~terminated
+        valid_for_dyn = valid_mask & non_terminated_mask  # shape (B, seq_len)
+        valid_dyn_count = valid_for_dyn.sum()
+        valid_loss_count = valid_mask.sum()
+        # Apply the mask to the dynamics loss
+        # print(next_latent_pred.shape)
+        # print("next_latent_pred: ", next_latent_pred[0:5, 0, :])
+        # print("next_latent_target: ", next_latent_target[0:5,0,:])
+        dynamics_loss = ((nn.MSELoss(reduction='none')(next_latent_pred, next_latent_target).mean(dim=-1) * valid_for_dyn).sum() / valid_dyn_count)
+        eps = 1e-6
+        # dynamics_loss = (((next_latent_pred - next_latent_target).norm(dim=-1) / (next_latent_target.norm(dim=-1) + eps)) * valid_for_dyn).sum() / valid_dyn_count
+        # dynamics_loss = (((next_latent_pred - next_latent_target)**2 / (torch.abs(next_latent_target) + eps)).mean(dim=-1) * valid_for_dyn).sum() / valid_dyn_count
+
+
+        prediction_loss = ((nn.MSELoss(reduction='none')(outputs["prediction"], batch["prediction_targets"]).mean(dim=-1) * valid_mask).sum() / valid_mask.sum())
         
-        # Prediction loss (decoder output vs. target state)
-        prediction_loss = torch.mean(
-            torch.sum(nn.MSELoss(reduction='none')(outputs["prediction"], batch["prediction_targets"]), dim=1))
+        kl_loss = -0.5 * (((1 + outputs["logvar"] - outputs["mu"]**2 - torch.exp(outputs["logvar"])).mean(dim=-1) * valid_mask).sum() / valid_mask.sum())
         
-        # KL divergence loss for the VAE part
-        kl_loss = -0.5 * torch.mean(torch.sum(1 + outputs["logvar"] - outputs["mu"]**2 - torch.exp(outputs["logvar"]), dim=1))
+        total_loss = (self.cfg["dynamics_weight"] * dynamics_loss +
+                        self.cfg["prediction_weight"] * prediction_loss +
+                        self.cfg["kl_weight"] * kl_loss)
         
-        total_loss = (
-            self.cfg["dynamics_weight"] * dynamics_loss +
-            self.cfg["prediction_weight"] * prediction_loss +
-            self.cfg["kl_weight"] * kl_loss
-        )
-        
+
+        # -- For dynamics --
+        # shape => (B, seq_len, latent_dim)
+        rel_dyn_error = (torch.sqrt((next_latent_pred - next_latent_target)**2) / (torch.abs(next_latent_target) + eps)).mean(dim=-1)  # (B, seq_len)
+        rel_dyn_error = (rel_dyn_error * valid_for_dyn).sum() / valid_dyn_count
+        # norm_dyn  = diff_dyn.norm(dim=-1)                   # L2-norm => (B, seq_len)
+        # denom_dyn = next_latent_target.norm(dim=-1) + eps   # (B, seq_len)
+        # # multiply by valid_for_dyn so we only sum over valid steps
+        # rel_dyn_error = (norm_dyn / denom_dyn * valid_for_dyn).sum() / valid_dyn_count
+
+        # -- For predictions --
+        diff_pred  = outputs["prediction"] - batch["prediction_targets"]
+        norm_pred  = diff_pred.norm(dim=-1)                  # (B, seq_len)
+        denom_pred = batch["prediction_targets"].norm(dim=-1) + eps
+        rel_pred_error = (norm_pred / denom_pred * valid_mask).sum() / valid_loss_count
         results = {
             "total_loss": total_loss.item(),
             "dynamics_loss": dynamics_loss.item(),
             "prediction_loss": prediction_loss.item(),
             "kl_loss": kl_loss.item(),
+            "relative_dynamics_error": rel_dyn_error.item(),
+            "relative_prediction_error": rel_pred_error.item()
         }
-        
         return total_loss, results
-    
+
     def update(self, batch):
         total_loss, results = self.loss(batch)
         self.optimizer.zero_grad()
@@ -325,7 +389,7 @@ class LatentDynamicsLearner:
         self.optimizer.step()
         results["grad_norm"] = grad_norm.item()
         return results
-    
+
     def evaluate(self):
         self.model.eval()
         eval_results = []
@@ -336,42 +400,95 @@ class LatentDynamicsLearner:
                 eval_results.append(results)
         self.model.train()
         return eval_results
-    
-    def learn(self):
-        if self.log_dir is not None:
-            self.logger_type = self.cfg.get("logger", "tensorboard").lower()
 
-            if self.logger_type == "neptune":
-                from rsl_rl.utils.neptune_utils import NeptuneSummaryWriter
-                self.writer = NeptuneSummaryWriter(log_dir=self.log_dir, flush_secs=10, cfg=self.cfg)
-                self.writer.log_config(self.cfg)
-            elif self.logger_type == "wandb":
-                from rsl_rl.utils.wandb_utils import WandbSummaryWriter
-                self.writer = WandbSummaryWriter(log_dir=self.log_dir, flush_secs=10, cfg=self.cfg)
-                self.writer.log_config(self.cfg)
-            elif self.logger_type == "tensorboard":
+    def learn(self, reporter=None):
+        # Determine if we are in tuning mode.
+        is_tuning = self.cfg.get("use_tune", False)
+        # Only initialize TensorBoard logging if not tuning and log_dir is set.
+        if not is_tuning and self.log_dir is not None:
+            self.logger_type = self.cfg.get("logger", "tensorboard").lower()
+            if self.logger_type == "tensorboard":
                 from torch.utils.tensorboard import SummaryWriter
                 self.writer = SummaryWriter(log_dir=self.log_dir, flush_secs=10)
-            else:
-                raise ValueError("Logger type not found. Please choose 'neptune', 'wandb' or 'tensorboard'.")
+            # (Other logger types can be added here.)
 
-        results = []
         while self.current_epoch < self.cfg["epoches"]:
+            results = []
             for batch in self.train_dataloader:
                 batch = {key: value.to(self.device) for key, value in batch.items()}
                 result = self.update(batch)
                 results.append(result)
-            
-            if self.current_epoch % self.cfg["eval_interval"] == 0 or self.current_epoch == self.cfg["epoches"]-1:
+            # Aggregate training metrics
+            avg_train_total_loss = np.mean([r["total_loss"] for r in results])
+            avg_train_dynamics_loss = np.mean([r["dynamics_loss"] for r in results])
+            avg_train_prediction_loss = np.mean([r["prediction_loss"] for r in results])
+            avg_train_kl_loss = np.mean([r["kl_loss"] for r in results])
+            avg_train_grad_norm = np.mean([r["grad_norm"] for r in results])
+            avg_train_dynamcis_error = np.mean([r["relative_dynamics_error"] for r in results])
+            avg_train_prediction_error = np.mean([r["relative_prediction_error"] for r in results])
+            # Evaluate periodically
+            avg_eval_total_loss = np.nan
+            avg_eval_dynamics_loss = np.nan
+            avg_eval_prediction_loss = np.nan
+            avg_eval_kl_loss = np.nan
+            avg_eval_dynamics_error = np.nan
+            avg_eval_prediction_error = np.nan
+            if self.current_epoch % self.cfg["eval_interval"] == 0 or self.current_epoch == self.cfg["epoches"] - 1:
                 eval_results = self.evaluate()
-            
-            if self.log_dir is not None:
-                self.log(locals())
-                if self.current_epoch % self.cfg["save_interval"] == 0 or self.current_epoch == self.cfg["epoches"]-1:
+                avg_eval_total_loss = np.mean([r["total_loss"] for r in eval_results])
+                avg_eval_dynamics_loss = np.mean([r["dynamics_loss"] for r in eval_results])
+                avg_eval_prediction_loss = np.mean([r["prediction_loss"] for r in eval_results])
+                avg_eval_kl_loss = np.mean([r["kl_loss"] for r in eval_results])
+                avg_eval_dynamics_error = np.mean([r["relative_dynamics_error"] for r in eval_results])
+                avg_eval_prediction_error = np.mean([r["relative_prediction_error"] for r in eval_results])
+            # Build the report dictionary (as in add_scalar)
+            report_dict = {
+                "train_total_loss": avg_train_total_loss,
+                "train_dynamics_loss": avg_train_dynamics_loss,
+                "train_prediction_loss": avg_train_prediction_loss,
+                "train_kl_loss": avg_train_kl_loss,
+                "train_grad_norm": avg_train_grad_norm,
+                "train_dynamics_error": avg_train_dynamcis_error,
+                "train_prediction_error": avg_train_prediction_error,
+                "lr": self.learning_rate,
+                "epoch": self.current_epoch,
+                "eval_total_loss": avg_eval_total_loss,
+                "eval_dynamics_loss": avg_eval_dynamics_loss,
+                "eval_prediction_loss": avg_eval_prediction_loss,
+                "eval_kl_loss": avg_eval_kl_loss,
+                "eval_dynamics_error": avg_eval_dynamics_error,
+                "eval_prediction_error": avg_eval_prediction_error
+            }
+            # When not tuning, log via SummaryWriter
+            if not is_tuning and self.log_dir is not None:
+                self.writer.add_scalar("Train/total_loss", avg_train_total_loss, self.current_epoch)
+                self.writer.add_scalar("Train/dynamics_loss", avg_train_dynamics_loss, self.current_epoch)
+                self.writer.add_scalar("Train/prediction_loss", avg_train_prediction_loss, self.current_epoch)
+                self.writer.add_scalar("Train/kl_loss", avg_train_kl_loss, self.current_epoch)
+                self.writer.add_scalar("Train/grad_norm", avg_train_grad_norm, self.current_epoch)
+                self.writer.add_scalar("Train/lr", self.learning_rate, self.current_epoch)
+                self.writer.add_scalar("Train/relative_dynamics_error", avg_train_dynamcis_error, self.current_epoch)
+                self.writer.add_scalar("Train/relative_prediction_error", avg_train_prediction_error, self.current_epoch)
+                if avg_eval_total_loss is not None:
+                    self.writer.add_scalar("Eval/total_loss", avg_eval_total_loss, self.current_epoch)
+                    self.writer.add_scalar("Eval/dynamics_loss", avg_eval_dynamics_loss, self.current_epoch)
+                    self.writer.add_scalar("Eval/prediction_loss", avg_eval_prediction_loss, self.current_epoch)
+                    self.writer.add_scalar("Eval/kl_loss", avg_eval_kl_loss, self.current_epoch)
+                    self.writer.add_scalar("Eval/relative_dynamics_error", avg_eval_dynamics_error, self.current_epoch)
+                    self.writer.add_scalar("Eval/relative_prediction_error", avg_eval_prediction_error, self.current_epoch)
+            # Print epoch summary
+            if not is_tuning:
+                print(f"Epoch {self.current_epoch}: Train total loss = {avg_train_total_loss}, Eval total loss = {avg_eval_total_loss}")
+            # If a reporter callback is provided (for Tune), report the metrics
+            if is_tuning and reporter is not None:
+                reporter(report_dict)
+            # Save checkpoints only if not tuning
+            if not is_tuning and self.log_dir is not None:
+                if self.current_epoch % self.cfg["save_interval"] == 0 or self.current_epoch == self.cfg["epoches"] - 1:
                     self.save(os.path.join(self.log_dir, f"model_{self.current_epoch}.pt"))
             self.current_epoch += 1
-            
-    def save(self, path:str):
+
+    def save(self, path: str):
         saved_dict = {
             "model_state_dict": self.model.state_dict(),
             "epoch": self.current_epoch,
@@ -379,44 +496,12 @@ class LatentDynamicsLearner:
         }
         torch.save(saved_dict, path)
 
-    def load(self, path:str, load_optimizer:bool=True):
+    def load(self, path: str, load_optimizer: bool = True):
         loaded_dict = torch.load(path)
         self.model.load_state_dict(loaded_dict["model_state_dict"])
         if load_optimizer:
             self.optimizer.load_state_dict(loaded_dict["optimizer_state"])
         self.current_epoch = loaded_dict["epoch"]
-
-    def log(self, locs:dict):
-        info_str = ""
-        results_list = locs["results"]
-        results_dict = defaultdict(list)
-        for result_key in results_list[0].keys():
-            for result in results_list:
-                results_dict[result_key].append(result[result_key])
-        
-        for result_key in results_dict:
-            log_key = result_key
-            if "loss" in result_key:
-                log_key = f"Loss/{result_key}"
-            elif "grad" in result_key:
-                log_key = f"Grad/{result_key}"
-            self.writer.add_scalar(f"{log_key}_ave", np.mean(results_dict[result_key]), self.current_epoch)
-            self.writer.add_scalar(f"{log_key}_std", np.std(results_dict[result_key]), self.current_epoch)
-        self.writer.add_scalar("lr", self.learning_rate, self.current_epoch)
-        info_str += f"Epoch {self.current_epoch}, Total loss ave: {np.mean(results_dict['total_loss'])}. "
-        
-        if self.current_epoch % self.cfg["eval_interval"] == 0 or self.current_epoch == self.cfg["epoches"]-1:
-            eval_results_list = locs["eval_results"]
-            eval_results_dict = defaultdict(list)
-            for result_key in eval_results_list[0].keys():
-                for result in eval_results_list:
-                    eval_results_dict[result_key].append(result[result_key])
-            for result_key in eval_results_dict:
-                log_key = f"Eval/{result_key}"
-                self.writer.add_scalar(f"{log_key}_ave", np.mean(eval_results_dict[result_key]), self.current_epoch)
-            info_str += f"Eval loss ave: {np.mean(eval_results_dict['total_loss'])}"
-        
-        print(info_str)
 
 #############################################
 # Configurations (with new KL weight parameter)
@@ -439,11 +524,10 @@ class GRUCfg:
     dropout = 0.0  # dropout prob only used if num_layers > 1
     name = "gru"
     fc_cfg = MLPCfg(
-        hidden_dims = [],
-        activation_at_end = [False],
-        name = "gru_out"
+        hidden_dims=[],
+        activation_at_end=[False],
+        name="gru_out"
     )
-    
     def __post_init__(self):
         self.fc_cfg.input_dim = self.hidden_dim
         self.fc_cfg.output_dim = self.output_dim
@@ -454,23 +538,19 @@ class LatentModelCfg:
     latent_dim = 16
     obs_dim = 57
     act_dim = 37
-    gru_hidden_dim = 16
     pred_targets_dim = 7
     seq_mode = "rnn"
     seq_len = 20
     encoder_cfg = MLPCfg()
     dynamics_cfg = GRUCfg()
     predictor_cfg = MLPCfg()
-    
     def __post_init__(self):
         self.encoder_cfg.input_dim = self.obs_dim
         self.encoder_cfg.output_dim = self.latent_dim
         self.encoder_cfg.name = "encoder"
-
         self.predictor_cfg.input_dim = self.latent_dim
         self.predictor_cfg.output_dim = self.pred_targets_dim
         self.predictor_cfg.name = "predictor"
-
         self.dynamics_cfg.input_dim = self.latent_dim + self.act_dim
         self.dynamics_cfg.output_dim = self.latent_dim
         self.dynamics_cfg.name = "dynamics"
@@ -478,61 +558,117 @@ class LatentModelCfg:
 
 @configclass
 class LatentLearnerCfg:
+    use_tune = False
     device = 'cuda:0'
-
-    """dataset"""
-    dataset_path = "episodes_states.npy"
+    dataset_path = "episodes_states_sim.npy"
     eval_pct = 0.2
-
-    """logging"""
     logger = "tensorboard"
-    log_dir = "./logs/VAE_decoupled_loss"
+    log_dir = "./logs/VAE_only"  # base log directory
     save_interval = 10
     eval_interval = 2
-
-    """training hyper parameters"""
-    seq_len = 24
-    epoches = 150
+    seq_len = 12
+    epoches = 1300
     batch_size = 64
-    learning_rate = 0.0001
+    learning_rate = 0.001
     grad_norm_clip = 10
-    dynamics_weight = 1
+    dynamics_weight = 5
     prediction_weight = 1
-    kl_weight = 1e-3  # weight for KL divergence term
-    dynamics_loss_to_encoder = False # whether propagate dynamics loss through encoder
+    kl_weight = 1e-3
+    dynamics_loss_to_encoder = False
 
-    """model architecture"""
-    # pred_targets_keys contains all state information for reconstruction
-    pred_targets_keys = ['base_pos', 'base_lin_vel_w', 'base_ang_vel_w', 'base_lin_vel', 
-                         'base_ang_vel', 'projected_gravity', 'base_quat', 'joint_pos']   # full observation
-    model_cfg = LatentModelCfg(
-        obs_dim=57,
-        act_dim=37,
-        latent_dim=16,
-        pred_targets_dim=57,
-        encoder_cfg = MLPCfg(
-            hidden_dims = [128],
-            activation_at_end = [True, False],
-            activation="crelu"
-        ),
-        predictor_cfg = MLPCfg(
-            hidden_dims = [128],
-            activation_at_end = [True, False],
-            activation="crelu"
-        ),
-        dynamics_cfg = GRUCfg(
-            hidden_dim=64
+    # Define observation and prediction target keys
+    obs_keys = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_quat', 'joint_pos', 'joint_vel']
+    pred_targets_keys = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_quat', 'joint_pos', 'joint_vel']
+
+    # Placeholder for dimensions (will be computed in __post_init__)
+    obs_dim = None
+    pred_targets_dim = None
+
+    # Other configurations
+    act_dim = 37
+    latent_dim = 32
+    gru_hidden_dim = 32
+    model_cfg = LatentModelCfg()
+
+    def __post_init__(self):
+        # Compute obs_dim and pred_targets_dim based on keys and their dimensions
+        self.obs_dim = sum(KEY_DIMENSIONS[key] for key in self.obs_keys)
+        self.pred_targets_dim = sum(KEY_DIMENSIONS[key] for key in self.pred_targets_keys)
+
+        # Update model_cfg with computed dimensions
+        self.model_cfg = LatentModelCfg(
+            obs_dim=self.obs_dim,
+            act_dim=self.act_dim,
+            latent_dim=self.latent_dim,
+            pred_targets_dim=self.pred_targets_dim,
+            encoder_cfg=MLPCfg(
+                hidden_dims=[256, 128],
+                activation_at_end=[True, True, False],
+                activation="crelu"
+            ),
+            predictor_cfg=MLPCfg(
+                hidden_dims=[256, 128],
+                activation_at_end=[True, True, False],
+                activation="crelu"
+            ),
+            dynamics_cfg=GRUCfg(
+                hidden_dim=self.gru_hidden_dim
+            )
         )
-    )
+        self.model_cfg.__post_init__()
 
+def tune_model(config):
+    config_obj = LatentLearnerCfg(**config)
+    # Now call .to_dict() to get a dictionary with all __post_init__ changes applied
+    updated_config = config_obj.to_dict()
+    learner = LatentDynamicsLearner(updated_config)
+    learner.learn(reporter=tune.report)
+
+#############################################
+# Main entry point with hyperparameter tuning support via Ray Tune
+#############################################
 if __name__ == "__main__":
-    # Load trajectory data and configuration
-    config = LatentLearnerCfg().to_dict()
-    
-    time_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    config["log_dir"] = os.path.join(config["log_dir"], time_str)
-    # Initialize latent dynamics learner with the modified (VAE) model
-    latent_learner = LatentDynamicsLearner(config)
-    
-    # Training loop
-    latent_learner.learn()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tune", action="store_true", help="Enable hyperparameter tuning with Ray Tune")
+    args = parser.parse_args()
+
+    if args.tune:
+        from ray import tune
+        from ray.tune.search import grid_search, BasicVariantGenerator, Repeater
+
+        base_config = LatentLearnerCfg().to_dict()
+        base_config["dataset_path"] = os.path.abspath(base_config["dataset_path"])
+        base_config["log_dir"] = os.path.abspath(base_config["log_dir"])
+        root_log_dir = base_config["log_dir"]
+        # Define hyperparameter search space.
+        # base_config["batch_size"] = tune.grid_search([64, 256])
+        # base_config["learning_rate"] = tune.grid_search([1e-4, 1e-3])
+
+        base_config["kl_weight"] = tune.grid_search([1e-3, 1e-2])
+        base_config["dynamics_weight"] = tune.grid_search([0.2, 1.0, 5.0])
+        base_config["latent_dim"] = tune.grid_search([16, 32])
+        base_config["gru_hidden_dim"] = tune.grid_search([32, 64, 128])
+        base_config["dynamics_loss_to_encoder"] = tune.grid_search([False, True])
+
+        base_config["use_tune"] = True
+
+        analysis = tune.run(
+            tune_model,
+            config=base_config,
+            storage_path=root_log_dir,
+            resources_per_trial={"gpu": 0.3},
+            metric="eval_total_loss",  # Metric to optimize
+            mode="min",  # Mode for optimization (minimize or maximize)
+            num_samples=2,
+            max_concurrent_trials=9
+        )
+        print("Best config: ", analysis.get_best_config(metric="eval_total_loss", mode="min", scope="all"))
+        df = analysis.dataframe()
+        df.to_csv(f"{root_log_dir}/tune_results.csv", index=False)
+    else:
+        config = LatentLearnerCfg().to_dict()
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        config["log_dir"] = os.path.join(config["log_dir"], timestamp)
+        config["use_tune"] = False
+        learner = LatentDynamicsLearner(config)
+        learner.learn()
