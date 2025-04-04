@@ -120,6 +120,7 @@ def main():
     max_episodes=500
     episode=0
     total_terminated=0
+    total_fail=0
     #simulate environment
     while simulation_app.is_running():
         # run everything in inference mode
@@ -142,15 +143,17 @@ def main():
                 #print('obs',env.env.obs_buf)
                 
                 state = env.env.obs_buf['state']
+                fail=env.env.obs_buf['fail']#['failure_state']
                 rew=rew
                 terminated=extra['terminated']
                 actions=env.env.action_manager.get_term('joint_pos').processed_actions
                 # print('rew',rew)
-                print('terminated',terminated)
+                #print('terminated',terminated)
                 # print(f"State: {state}")
                 # print(f"Actions: {actions}")
                 step_data = {
                 "state": state,
+                "fail":fail,
                 "action": actions,
                 "reward": rew,
                 "terminated": terminated
@@ -159,12 +162,16 @@ def main():
                 print(f"Episode: {episode}")
                 # Count the number of True values in the 'terminated' tensor
                 true_count = terminated.sum()
+                fail_count = fail.sum()
                 print(f"Number of True values in 'terminated': {true_count}")
+                print(f"Number of True values in 'fail': {fail_count}")
                 total_terminated+= true_count
+                total_fail += fail_count
             elif episode == max_episodes:
-                print(total_terminated)
+                print('total terminated:',total_terminated)
+                print('total fail:',total_fail)
                 all_episodes_states_array = np.array(all_episodes_states, dtype=object)
-                np.save("episodes_states_real_23dof_euler.npy", all_episodes_states_array)
+                np.save("episodes_states_real_23dof_new.npy", all_episodes_states_array)
                 print("Episodes states saved")
                 
         if args_cli.video:

@@ -1349,8 +1349,8 @@ class Articulation(AssetBase):
                 self.write_joint_armature_to_sim(actuator.armature, joint_ids=actuator.joint_indices)
                 self.write_joint_friction_to_sim(actuator.friction, joint_ids=actuator.joint_indices)
                 # Store the actual default stiffness and damping values for explicit actuators (not written the sim)
-                self._data.default_joint_stiffness[:, actuator.joint_indices] = actuator.stiffness
-                self._data.default_joint_damping[:, actuator.joint_indices] = actuator.damping
+            self._data.default_joint_stiffness[:, actuator.joint_indices] = actuator.stiffness
+            self._data.default_joint_damping[:, actuator.joint_indices] = actuator.damping
 
         # perform some sanity checks to ensure actuators are prepared correctly
         total_act_joints = sum(actuator.num_joints for actuator in self.actuators.values())

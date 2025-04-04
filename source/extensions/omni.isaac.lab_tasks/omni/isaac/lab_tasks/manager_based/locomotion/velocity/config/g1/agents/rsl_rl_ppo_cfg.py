@@ -102,7 +102,10 @@ class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         #     "predictor_hidden_dims": [256,128], # hidden dimensions of predictor network
         #     "target_hidden_dims": [256,128],  # hidden dimensions of target network
         # }
+        
     )
+    logger = "wandb"
+    wandb_project = "g1_box-23dof"  # Set the project name for Weights & Biases logging
     
 
 @configclass
@@ -139,7 +142,7 @@ class G1TargetPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations =8000#3000
-    save_interval = 500#50
+    save_interval = 10#50
     experiment_name = "g1_23_rough"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(

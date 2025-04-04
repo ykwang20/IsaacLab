@@ -116,8 +116,7 @@ class TargetCommand(CommandTerm):
         contact=torch.all(torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] 
                       > 1, dim=1)
         
-        successes =torch.logical_and(near, contact)
-        #successes=near
+        successes=near
 
         self.metrics["consecutive_success"] += successes.float()
 

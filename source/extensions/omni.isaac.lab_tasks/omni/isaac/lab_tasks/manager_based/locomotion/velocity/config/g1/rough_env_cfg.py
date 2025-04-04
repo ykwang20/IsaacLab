@@ -172,8 +172,8 @@ class TerminationsCfg:
         func=mdp.illegal_contact,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},
     )
-    height_low = DoneTerm(func=mdp.root_height_below_minimum, params={'minimum_height':0.45})
-    height_high = DoneTerm(func=mdp.root_height_above_maximum, params={'maximum_height':1.1})
+    # height_low = DoneTerm(func=mdp.root_height_below_minimum, params={'minimum_height':0.45})
+    # height_high = DoneTerm(func=mdp.root_height_above_maximum, params={'maximum_height':1.1})
 
 
 @configclass
@@ -233,6 +233,21 @@ class ObservationsCfg:
 
     # observation groups
     state: StateCfg = StateCfg()
+
+    @configclass
+    class FailCfg(ObsGroup):
+        """Observations for policy group."""
+
+        
+        failure_state = ObsTerm(func=mdp.height_fail,params={'minimum_height':0.45,'maximum_height':1.1})
+
+
+        def __post_init__(self):
+            self.enable_corruption = False#True
+            self.concatenate_terms = True
+
+    # observation groups
+    fail: FailCfg = FailCfg()
 
 @configclass
 class SimEventCfg:
@@ -313,18 +328,18 @@ class RealEventCfg:
             "num_buckets": 64,
         },
     )
-    # robot_joint_stiffness_and_damping = EventTerm(
-    #     func=mdp.randomize_actuator_gains,
-    #     min_step_count_between_reset=720,
-    #     mode="reset",
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-    #         "stiffness_distribution_params": (0., 0.),
-    #         "damping_distribution_params": (0., 0.),
-    #         "operation": "add",
-    #         "distribution": "uniform",
-    #     },
-    # )
+    robot_joint_stiffness_and_damping = EventTerm(
+        func=mdp.randomize_actuator_gains,
+        min_step_count_between_reset=720,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+            "stiffness_distribution_params": (0.7, 0.9),
+            "damping_distribution_params": (0.7, 0.9),
+            "operation": "scale",
+            "distribution": "uniform",
+        },
+    )
 
     add_base_mass = EventTerm(
         func=mdp.randomize_rigid_body_mass,
