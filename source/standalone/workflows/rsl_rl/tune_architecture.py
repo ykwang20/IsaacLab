@@ -45,7 +45,7 @@ from omni.isaac.lab.utils.dict import print_dict
 
 
 import os
-#os.environ["CUDA_VISIBLE_DEVICES"] = "1, 2"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 import datetime
 import numpy as np
 import torch
@@ -63,74 +63,104 @@ from k_step_evaluate import compute_batch_k_step_errors
 #############################################
 KEY_DIMENSIONS = {
     "base_pos": {'dim':1, 'idx_start':0, 'range': torch.tensor([0.8])},         # z coord position
-    "base_lin_vel": {'dim':3, 'idx_start':1, 'range': torch.tensor([1]*3)},      
-    "base_ang_vel": {'dim':3, 'idx_start':4, 'range': torch.tensor([1]*3)},           
-    #"base_quat": {'dim':4, 'idx_start':7, 'range': torch.tensor([1.0]*4)}, 
+    "base_lin_vel": {'dim':3, 'idx_start':1, 'range': torch.tensor([1.0]*3)},      
+    "base_ang_vel": {'dim':3, 'idx_start':4, 'range': torch.tensor([1.0]*3)},           
     "base_euler": {'dim':3, 'idx_start':7, 'range': torch.tensor([6.28]*3)},             
-    "joint_pos": {'dim':23, 'idx_start':10, 'range': torch.tensor([3]*23)},            
+    "joint_pos": {'dim':23, 'idx_start':10, 'range': torch.tensor([3.0]*23)},            
 }
+
+
+def _process_observations(data, num_agents, obs_keys):
+    # shape => (T, num_agents, obs_dim)
+    obs_list = []
+    for i, d in enumerate(data):
+        state = d["state"]
+        feats = [state[k].view(num_agents, -1) for k in obs_keys]
+        obs_list.append(torch.cat(feats, dim=-1))
+    return torch.stack(obs_list, dim=0).float()
+
+def _process_actions(data):
+    return torch.stack([d["action"] for d in data], dim=0).float()  # (T, num_agents, act_dim)
+
+def _process_prediction_targets(data, num_agents, pred_targets_keys):
+    t_list = []
+    for d in data:
+        comps = []
+        for key in pred_targets_keys:
+            if key in d:
+                comp = d[key].view(num_agents, -1)
+            elif "state" in d and key in d["state"]:
+                comp = d["state"][key].view(num_agents, -1)
+            else:
+                raise KeyError(f"Key '{key}' not found in data.")
+            comps.append(comp)
+        t_list.append(torch.cat(comps, dim=-1))
+    return torch.stack(t_list, dim=0).float()
+
+def _process_next_obs(observations):
+    next_obs = torch.zeros_like(observations)
+    next_obs[:-1] = observations[1:]
+    next_obs[-1] = observations[-1]
+    return next_obs
+
+def _process_terminated(data):
+    arr_terminated = [d["terminated"] for d in data]
+    arr_failure = [d["fail"] for d in data]
+    return torch.stack(arr_terminated, dim=0).bool(), torch.stack(arr_failure, dim=0).bool()
+
 
 
 #############################################
 # TrajectoryDataset for dynamics transitions
 #############################################
-class TrajectoryDataset(Dataset):
-    def __init__(self, data_path: str, obs_keys, pred_targets_keys, seq_len=24):
+class StatesDataset(Dataset):
+    def __init__(self, data_path: str, obs_keys, pred_targets_keys):
         self.data = np.load(data_path, allow_pickle=True).tolist()
         self.obs_keys = obs_keys
         self.pred_targets_keys = pred_targets_keys
         self.num_agents = self.data[0]['action'].shape[0]
         self.T = len(self.data)
-        self.seq_len = seq_len
 
         # Process core data fields
-        self.observations = self._process_observations()     # (T, num_agents, obs_dim)
-        self.actions = self._process_actions()               # (T, num_agents, act_dim)
-        self.targets = self._process_prediction_targets()    # (T, num_agents, target_dim)
-        self.next_observations = self._process_next_obs()    # (T, num_agents, obs_dim)
-        self.terminated = self._process_terminated()         # (T, num_agents)
+        self.observations = _process_observations(self.data, self.num_agents, self.obs_keys)     # (T, num_agents, obs_dim)
+        self.actions = _process_actions(self.data)               # (T, num_agents, act_dim)
+        self.targets = _process_prediction_targets(self.data, self.num_agents, self.pred_targets_keys)    # (T, num_agents, target_dim)
+        self.next_observations = _process_next_obs(self.observations)    # (T, num_agents, obs_dim)
+        self.terminated, self.failed = _process_terminated(self.data)         # (T, num_agents)
 
+        self.all_obs = self.observations.view(-1, self.observations.shape[-1])
+        self.all_targets = self.targets.view(-1, self.targets.shape[-1])
+
+    def __len__(self):
+        return self.T*self.num_agents
+    
+    def __repr__(self):
+        return (f"StatesDataset: {self.T*self.num_agents} samples,"
+                f"\nobs_dim={self.observations.shape}, "
+                f"\ntarget_dim={self.targets.shape}"
+                f"\nnum_failure={torch.sum(self.failed)}")
+
+    def __getitem__(self, idx):
+        t = idx // self.num_agents
+        agent = idx % self.num_agents
+        return {
+            'obs': self.observations[t, agent],
+            'prediction_targets': self.targets[t, agent],
+            'action': self.actions[t, agent],
+            'terminated': self.terminated[t, agent],
+            'failed': self.failed[t, agent],
+            'next_obs': self.next_observations[t, agent]
+        }
+
+class TrajectoryDataset(StatesDataset):
+    def __init__(self, data_path: str, obs_keys, pred_targets_keys, seq_len=24):
+        super().__init__(data_path, obs_keys, pred_targets_keys)
+        self.seq_len = seq_len
         # Build valid subsequences for dynamics training
         self.samples = []
         self._build_subsequences()
         self._validate_dataset()
 
-    def _process_observations(self):
-        # shape => (T, num_agents, obs_dim)
-        obs_list = []
-        for d in self.data:
-            state = d["state"]
-            feats = [state[k].view(self.num_agents, -1) for k in self.obs_keys]
-            obs_list.append(torch.cat(feats, dim=-1))
-        return torch.stack(obs_list, dim=0).float()
-
-    def _process_actions(self):
-        return torch.stack([d["action"] for d in self.data], dim=0).float()  # (T, num_agents, act_dim)
-
-    def _process_prediction_targets(self):
-        t_list = []
-        for d in self.data:
-            comps = []
-            for key in self.pred_targets_keys:
-                if key in d:
-                    comp = d[key].view(self.num_agents, -1)
-                elif "state" in d and key in d["state"]:
-                    comp = d["state"][key].view(self.num_agents, -1)
-                else:
-                    raise KeyError(f"Key '{key}' not found in data.")
-                comps.append(comp)
-            t_list.append(torch.cat(comps, dim=-1))
-        return torch.stack(t_list, dim=0).float()
-
-    def _process_next_obs(self):
-        next_obs = torch.zeros_like(self.observations)
-        next_obs[:-1] = self.observations[1:]
-        next_obs[-1] = self.observations[-1]
-        return next_obs
-
-    def _process_terminated(self):
-        arr = [d["terminated"] for d in self.data]
-        return torch.stack(arr, dim=0).bool()
 
     def _build_subsequences(self):
         """Build subsequences with terminated states as final step (for GRU training)."""
@@ -215,39 +245,6 @@ class TrajectoryDataset(Dataset):
 
 
 #############################################
-# A simple dataset for i.i.d. VAE states
-#############################################
-class VAEStatesDataset(Dataset):
-    """
-    Returns single states i.i.d. from the entire list of observations,
-    ignoring subsequences. This way, we meet the VAE's assumption of 
-    i.i.d. data for reconstruction.
-    """
-    def __init__(self, traj_dataset: TrajectoryDataset):
-        # All observations shape => (T, num_agents, obs_dim)
-        obs = traj_dataset.observations  # a (T, N, obs_dim) tensor
-        targets = traj_dataset.targets  # a (T, N, target_dim) tensor
-        # Flatten out T * N
-        # final shape => (T*N, obs_dim)
-        self.all_obs = obs.view(-1, obs.shape[-1])
-        self.all_targets = targets.view(-1, targets.shape[-1])
-
-    def __len__(self):
-        return self.all_obs.shape[0]
-    
-    def __repr__(self):
-        return (f"VAEStatesDataset: {self.all_obs.shape[0]} samples,"
-                f"\nobs_dim={self.all_obs.shape}, "
-                f"\ntarget_dim={self.all_targets.shape}")
-
-    def __getitem__(self, idx):
-        return {
-            'obs': self.all_obs[idx],
-            'prediction_targets': self.all_targets[idx]
-        }
-
-
-#############################################
 # Network Modules
 #############################################
 class MLPNetwork(nn.Module):
@@ -328,7 +325,8 @@ class LatentDynamicsModel(nn.Module):
         self.predictor_cfg = cfg.get("predictor_cfg", None)
 
         self.encoder = VAEEncoder(self.encoder_cfg, device=self.device)
-        self.dynamics = GRUNetwork(self.dynamics_cfg, device=self.device)
+        # self.dynamics = GRUNetwork(self.dynamics_cfg, device=self.device)
+        self.dynamics = MLPNetwork(self.dynamics_cfg, device=self.device)
         self.predictor = MLPNetwork(self.predictor_cfg, device=self.device)
 
         # Optionally freeze GRU from the start if you only want to train VAE first:
@@ -375,6 +373,26 @@ class LatentDynamicsModel(nn.Module):
         return next_latent
 
 
+def _aggregate_stats(dict_list, keys):
+    """
+    Returns {key: (mean, std)} for each key in keys.
+    If the key is missing in a particular dict, we treat it as np.nan.
+    """
+    out = {}
+    for k in keys:
+        vals = []
+        for d in dict_list:
+            if k in d:
+                vals.append(d[k])
+            else:
+                vals.append(np.nan)
+        # compute mean, std for this key
+        mean_val = float(np.nanmean(vals)) if len(vals) > 0 else np.nan
+        std_val = float(np.nanstd(vals)) if len(vals) > 0 else np.nan
+        out[k] = (mean_val, std_val)
+    return out
+
+
 #############################################
 # LatentDynamicsLearner
 #############################################
@@ -401,7 +419,11 @@ class LatentDynamicsLearner:
         # -------------------------------------------
         # 2) Build the states dataset for VAE
         # -------------------------------------------
-        full_vae_dataset = VAEStatesDataset(full_dyn_dataset)
+        full_vae_dataset = StatesDataset(
+            cfg["dataset_path"],
+            pred_targets_keys=cfg["pred_targets_keys"],
+            obs_keys=cfg["obs_keys"],
+        )
         print("VAE States dataset:")
         print(full_vae_dataset)
 
@@ -603,22 +625,16 @@ class LatentDynamicsLearner:
             if reporter is not None and self.is_tuning:
                 reporter(processed_results)
             
-            if not self.is_tuning and self.log_dir is not None:
+            # if not self.is_tuning and self.log_dir is not None:
+            if self.log_dir is not None:
                 if self.current_epoch % self.cfg["save_interval"] == 0 or self.current_epoch == self.cfg["epoches"] - 1:
-                    self.save(os.path.join(self.log_dir, f"model_{self.current_epoch}.pt"))
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+                    name = f"model_{len(self.cfg['obs_keys'])}keys_lr{self.learning_rate}_{self.current_epoch}_{timestamp}.pt"
+                    self.save(os.path.join(self.log_dir, name))
             
             self.current_epoch += 1
 
     def postprocess_results(self, results, model):
-        """
-        1) Convert train_results (list of dicts) and eval_results (list of dicts or None)
-           into average & std.
-        2) We unify a set of required keys:
-           ["total_loss", "dynamics_loss", "prediction_loss", "kl_loss", "grad_norm"]
-        3) Return a dictionary with train_XXX_ave, train_XXX_std, eval_XXX_ave, eval_XXX_std
-        4) Also do TensorBoard logging (if not tuning)
-        5) Print out averages in terminal
-        """
         required_keys = ["total_loss", "dynamics_loss", "prediction_loss", "kl_loss", "grad_norm", 
                          "relative_dynamics_error", "relative_prediction_error"]
         for key in self.cfg['pred_targets_keys']:
@@ -628,26 +644,6 @@ class LatentDynamicsLearner:
 
         train_list = results["train_results"]  # list of dict
         eval_list = results["eval_results"]    # list of dict or None
-
-        # Helper to aggregate stats
-        def _aggregate_stats(dict_list, keys):
-            """
-            Returns {key: (mean, std)} for each key in keys.
-            If the key is missing in a particular dict, we treat it as np.nan.
-            """
-            out = {}
-            for k in keys:
-                vals = []
-                for d in dict_list:
-                    if k in d:
-                        vals.append(d[k])
-                    else:
-                        vals.append(np.nan)
-                # compute mean, std for this key
-                mean_val = float(np.nanmean(vals)) if len(vals) > 0 else np.nan
-                std_val = float(np.nanstd(vals)) if len(vals) > 0 else np.nan
-                out[k] = (mean_val, std_val)
-            return out
 
         # 1) Aggregate train
         train_agg = _aggregate_stats(train_list, required_keys)
@@ -702,7 +698,7 @@ class LatentDynamicsLearner:
             self.model.load_state_dict(loaded_dict["model_state_dict"])
         else:
             filtered_dict = {k:v for k, v in loaded_dict["model_state_dict"].items() if ("dynamics" not in k)}
-            self.model.load_state_dict(filtered_dict)
+            self.model.load_state_dict(filtered_dict, strict=False)
         if load_optimizer:
             self.optimizer.load_state_dict(loaded_dict["optimizer_state"])
 
@@ -767,11 +763,11 @@ class LatentModelCfg:
 class LatentLearnerCfg:
     use_tune = False
     device = 'cuda:0'
-    dataset_path = "episodes_states_real_23dof_euler.npy"
+    dataset_path = "episodes_states_sim_23dof_new_merged_100.npy"
     eval_pct = 0.2
     logger = "tensorboard"
-    log_dir = "./logs/test_obskey_gru"  # base log directory
-    save_interval = 10
+    log_dir = "./logs/VAE"  # base log directory
+    save_interval = 50
     eval_interval = 2
     seq_len = 12
     k_step = 10
@@ -784,8 +780,8 @@ class LatentLearnerCfg:
     dynamics_loss_to_encoder = False
 
     # For demonstration, we add new fields:
-    vae_epoches = 0
-    dyn_epoches = 1000
+    vae_epoches = 250
+    dyn_epoches = 0 #600
     epoches = 50
 
     # define keys
@@ -793,7 +789,7 @@ class LatentLearnerCfg:
     pred_targets_keys = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_euler', 'joint_pos'] #, 'joint_vel']
 
     act_dim = 23
-    obs_dim = 56 # place holder. Automatically adjusted with obs keys
+    obs_dim = 57 # place holder. Automatically adjusted with obs keys
     pred_targets_dim = 7 # place holder. Automatically adjusted with pred keys
     latent_dim = 32
     gru_hidden_dim = 32
@@ -820,64 +816,69 @@ class LatentLearnerCfg:
                 activation_at_end=[True, True, False],
                 activation="crelu"
             ),
-            dynamics_cfg=GRUCfg(
-                hidden_dim=self.gru_hidden_dim
+            # dynamics_cfg=GRUCfg(
+            #     hidden_dim=self.gru_hidden_dim
+            # )
+            dynamics_cfg=MLPCfg(
+                hidden_dims=[256, 128],
+                activation_at_end=[True, True, False],
+                activation="crelu"
             )
         )
         self.model_cfg.__post_init__()
 
 
-def tune_model(config):
-    config['pred_targets_keys'] = config['obs_keys']  # for tuning, we use the same keys
+def tune_model(args, config, model_path=None):
+    config['pred_targets_keys'] = config["obs_keys"]
     config_obj = LatentLearnerCfg(**config)
     # Now call .to_dict() to get a dictionary with all __post_init__ changes applied
     updated_config = config_obj.to_dict()
     learner = LatentDynamicsLearner(updated_config)
+    if args.load_model:
+        assert os.path.exists(model_path)
+        learner.load(model_path, load_dynamics=args.load_dynamics, load_optimizer=False)
     learner.learn(reporter=tune.report)
 
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--tune", action="store_true", help="Enable hyperparameter tuning with Ray Tune")
-    # parser.add_argument("--load_dynamics", action="store_true")
-    # parser.add_argument("--load_model", action='store_true')
-    # parser.add_argument("--model_path", type=str)
-    # args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tune", action="store_true", help="Enable hyperparameter tuning with Ray Tune")
+    parser.add_argument("--load_dynamics", action="store_true")
+    parser.add_argument("--load_model", action='store_true')
+    parser.add_argument("--model_path", type=str)
+    args = parser.parse_args()
 
     base_config = LatentLearnerCfg().to_dict()
 
-    if args_cli.tune:
+    if args.tune:
         from ray import tune
         base_config["dataset_path"] = os.path.abspath(base_config["dataset_path"])
         base_config["log_dir"] = os.path.abspath(base_config["log_dir"])
         root_log_dir = base_config["log_dir"]
 
         # Define hyperparameter search space.
-        base_config["obs_keys"] = tune.grid_search([
+        # base_config["pred_targets_keys"] = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_euler', 'joint_pos']
+        base_config["learning_rate"] = tune.grid_search([1e-3, 1e-4])
+        base_config['obs_keys'] = tune.grid_search([
             ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_euler', 'joint_pos'],
             ['base_pos', 'base_lin_vel', 'base_euler', 'joint_pos'],
-            ['base_pos', 'base_euler','joint_pos'],
+            ['base_pos', 'base_euler', 'joint_pos']
         ])
-        #base_config["pred_targets_keys"] = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_quat', 'joint_pos']
-        # base_config["learning_rate"] = tune.grid_search([1e-4, 1e-3, 1e-2])
-        # base_config["kl_weight"] = tune.grid_search([1e-4, 1e-3, 1e-2])
-        # # base_config["dynamics_weight"] = tune.grid_search([0.2, 1.0, 5.0])
-        # base_config["latent_dim"] = tune.grid_search([16, 32, 64])
-        # base_config["gru_hidden_dim"] = tune.grid_search([32, 64, 128])
-        # base_config["dynamics_loss_to_encoder"] = tune.grid_search([False, True])
+        # base_config["batch_size"] = tune.grid_search([128, 256, 512, 1024])
 
         base_config["use_tune"] = True
 
+        model_path=os.path.abspath(args.model_path) if args.model_path else None
         analysis = tune.run(
-            tune_model,
+            lambda config: tune_model(args, config, model_path=model_path),
             config=base_config,
             storage_path=root_log_dir,
-            resources_per_trial={"gpu": 0.4},
-            metric="eval_base_pos_5step_rel_norms_error_ave",  # Metric to optimize
+            resources_per_trial={"gpu": 0.3},
+            metric="eval_prediction_loss_ave",  # Metric to optimize
             mode="min",  # Mode for optimization (minimize or maximize)
-            num_samples=2,
+            num_samples=3,
             verbose=1,
-            max_concurrent_trials=5
+            max_concurrent_trials=6
         )
         print("Best config: ", analysis.get_best_config(metric="eval_base_pos_5step_rel_norms_error_ave", mode="min", scope="all"))
         df = analysis.dataframe()
@@ -887,6 +888,6 @@ if __name__ == "__main__":
         base_config["log_dir"] = os.path.join(base_config["log_dir"], timestamp)
         base_config["use_tune"] = False
         learner = LatentDynamicsLearner(base_config)
-        if args_cli.load_model:
-            learner.load(args_cli.model_path, load_dynamics=args_cli.load_dynamics, load_optimizer=False)
+        if args.load_model:
+            learner.load(args.model_path, load_dynamics=args.load_dynamics, load_optimizer=False)
         learner.learn()

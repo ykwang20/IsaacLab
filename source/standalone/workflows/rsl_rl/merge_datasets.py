@@ -69,15 +69,15 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="合并两个包含嵌套结构的数据集")
     parser.add_argument("--dataset1", 
-                       default='/home/legrobot/IsaacLab/episodes_states_sim_23dof_new_model_last.npy',
+                       default='/home/legrobot/IsaacLab/episodes_states_sim_23dof_new_model_last_100.npy',
                        type=str, 
                        help="第一个数据集路径")
     parser.add_argument("--dataset2",
-                       default='/home/legrobot/IsaacLab/episodes_states_sim_23dof_new_model50.npy', 
+                       default='/home/legrobot/IsaacLab/episodes_states_sim_23dof_new_model50_100.npy', 
                        type=str, 
                        help="第二个数据集路径")
     parser.add_argument("--output", 
-                       default='/home/legrobot/IsaacLab/episodes_states_sim_23dof_new_merged.npy',
+                       default='/home/legrobot/IsaacLab/episodes_states_sim_23dof_new_merged_100.npy',
                        type=str, 
                        help="合并后输出路径")
     
