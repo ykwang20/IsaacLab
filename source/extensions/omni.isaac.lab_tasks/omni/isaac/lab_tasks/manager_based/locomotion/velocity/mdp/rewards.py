@@ -118,6 +118,7 @@ def position_tracking(env, command_name: str,  start_time: float,asset_cfg: Scen
     #return 1-0.5*pos_error
     pos_error_square = torch.sum(torch.square(env.command_manager.get_command(command_name)[:, :2]
                             +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2]), dim=1)
+    #print('root pos:',asset.data.root_pos_w[:, :2]-env.scene.env_origins[:,:2])
     pos_error=torch.sqrt(pos_error_square)
     #print('pos error:',pos_error)
     #print('pos tracking reward:',1/(1+pos_error_square))
@@ -195,8 +196,8 @@ def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = Scene
     #     print('pos error square:', pos_error_sqaure[0])
     #     user_input = input("Input Enter")
     #print('move in direction:',torch.where(condition,torch.zeros_like(raw_reward),raw_reward))
-    #print('move in direction reward:', torch.where(reward > 0, reward, 10*reward))
-    return torch.where(reward > 0, reward, 2*reward)  # Penalize negative reward sharply
+    #print('move in direction reward:', torch.where(reward > 0, reward, 2*reward))
+    return torch.where(reward > 0, reward, 10*reward)  # Penalize negative reward sharply
     #return torch.where(condition,torch.zeros_like(raw_reward),raw_reward)
 
 def joint_velocity_limits(
@@ -315,14 +316,32 @@ def body_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold:
     # #print('on air:',on_air)
     # return on_air
 
-def knee_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, torso_bodies_sensor_cfg:SceneEntityCfg,threshold: float) -> torch.Tensor:
+def feet_in_air(env: ManagerBasedRLEnv, feet_sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
     """Terminate when the contact force on the sensor exceeds the force threshold."""
     # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[feet_sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    feet_air=torch.max(torch.norm(net_contact_forces[:, :, feet_sensor_cfg.body_ids], dim=-1), dim=1)[0] < threshold
+    feet_air=torch.sum(feet_air.int(), dim=1)
+    #print('feet air:', feet_air)
+    return feet_air
+
+def knee_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, feet_sensor_cfg:SceneEntityCfg, torso_bodies_sensor_cfg:SceneEntityCfg,threshold: float,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Terminate when the contact force on the sensor exceeds the force threshold."""
+    # extract the used quantities (to enable type-hinting)
+    asset = env.scene[asset_cfg.name]
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    feet_contact_sensor: ContactSensor = env.scene.sensors[feet_sensor_cfg.name]
     torso_bodies_sensor: ContactSensor = env.scene.sensors[torso_bodies_sensor_cfg.name]
+
     bodies_air_time=contact_sensor.data.current_air_time[:, sensor_cfg.body_ids]
+    net_contact_forces = feet_contact_sensor.data.net_forces_w_history
+    feet_air=torch.any(torch.max(torch.norm(net_contact_forces[:, :, feet_sensor_cfg.body_ids], dim=-1), dim=1)[0] < 1, dim=1)
+    #print('feet air:', feet_air)
+    root_pos=asset.data.root_pos_w[:, 0]-env.scene.env_origins[:,0]
+    #user_input = input("Input Enter")
     torso_bodies_force=torso_bodies_sensor.data.force_matrix_w.norm(dim=-1).max(dim=-1)[0].squeeze(-1)
-    print('torso_bodies_force:', torso_bodies_force)
+    #print('torso_bodies_force:', torso_bodies_force)
     #print('bodies air time:', bodies_air_time)
     torso_self_contact=torso_bodies_force>threshold
     max_air_time=bodies_air_time.max(dim=1)[0]
@@ -330,15 +349,17 @@ def knee_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, torso_bodi
     tmp_air_time[:,-1]=max_air_time
     bodies_air_time=torch.where(torso_self_contact.unsqueeze(-1), tmp_air_time, bodies_air_time)
     air_time=bodies_air_time.min(dim=1)[0]
-    print('body names:',[contact_sensor.body_names[i] for i in sensor_cfg.body_ids])
+    #print('body names:',[contact_sensor.body_names[i] for i in sensor_cfg.body_ids])
     #print('body ids:',sensor_cfg.body_ids)
-    print('bodies air time:', bodies_air_time)
-    print('air time:', air_time)
+    #print('bodies air time:', bodies_air_time)
+    # print('air time:', air_time)
     # if air_time < 0.0001:
     # #     print('pos error square:', pos_error_sqaure[0])
     #      user_input = input("Input Enter")
-    # #print('knee air time:', (torch.exp(20*air_time)-1))
-    return (torch.exp(20*air_time)-1).clip(max=2000.0)
+    #print('knee air time:', (torch.exp(20*air_time)-1))
+    reward=(torch.exp(20*air_time)-1)#.clip(max=200.0)
+    #print('reward:',torch.where(feet_air, reward, torch.zeros_like(reward)))
+    return torch.where(root_pos>1.5, reward, torch.zeros_like(reward))
 
 def success_bonus(
     env: ManagerBasedRLEnv,sensor_cfg: SceneEntityCfg, success_distance:float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")

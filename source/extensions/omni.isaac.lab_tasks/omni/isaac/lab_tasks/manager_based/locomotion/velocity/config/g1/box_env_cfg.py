@@ -73,10 +73,14 @@ class G1Rewards:
     #alive_reward=RewTerm(func=mdp.is_alive, weight=5)#100
     air_penalty = RewTerm(func=mdp.body_air_time, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",
                                              body_names=[ ".*"]), "threshold": 1.0,})
-    knee_air_time_penalty = RewTerm(func=mdp.knee_air_time, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",
-                                             body_names=[ ".*_hip_roll_link",".*_hip_yaw_link",".*_knee_link",".*_ankle_roll_link", "torso_link"]),
+    knee_air_time_penalty = RewTerm(func=mdp.knee_air_time, weight=-1,params={
+                                            "sensor_cfg": SceneEntityCfg("contact_forces",
+                                             body_names=[ ".*_hip_roll_link",".*_hip_yaw_link",".*_knee_link", "torso_link","pelvis_contour_link"]),
+                                             "feet_sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_ankle_roll_link"]),
                                               "torso_bodies_sensor_cfg": SceneEntityCfg("torso_bodies_contact",
-                                             body_names=[ "torso_link"]),"threshold": 1.0,})
+                                             body_names=[ "torso_link"]),
+                                             "threshold": 1.0,})
+    #feet_air =RewTerm(func=mdp.feet_in_air, weight=0.1,params={"feet_sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_ankle_roll_link"]),"threshold": 1.0,})
     
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
     #TODO: base vel
@@ -91,7 +95,7 @@ class G1Rewards:
     #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
     # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,#weight=-0.05,
     #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,
+    joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#-0.005,
                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # feet_air_time = RewTerm(
     #     func=mdp.feet_air_time_positive_biped,
@@ -354,7 +358,7 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
         # make a smaller scene for play
         self.scene.num_envs = 10
         self.scene.env_spacing = 2.5
-        self.episode_length_s = 2.5#10.0
+        self.episode_length_s =5# 2.5#10.0
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
         # reduce the number of terrains to save memory
