@@ -72,6 +72,8 @@ class MySceneCfg(InteractiveSceneCfg):
         mesh_prim_paths=["/World/ground"],
     )
     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
+    torso_bodies_contact = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/torso_link", filter_prim_paths_expr=["{ENV_REGEX_NS}/Robot/(?!torso_link).*"],history_length=3, track_air_time=True)
+
     # lights
     sky_light = AssetBaseCfg(
         prim_path="/World/skyLight",

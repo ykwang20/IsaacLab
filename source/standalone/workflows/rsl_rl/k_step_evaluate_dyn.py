@@ -1,5 +1,8 @@
+
+
+
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -63,27 +66,29 @@ def compute_batch_k_step_errors(
     ], dim=1) # N x k x obs_dim
     # true_next_obs = torch.stack([obs, true_next_obs], dim=0) # N x k+1 x obs_dim
     # Batched forward passes
-    z = learner.model.latent(obs) # N x latent_dim
-    pred_curr_obs = learner.model.predictor.forward(z) # N x 1 x obs_dim
+    #z = learner.model.latent(obs) # N x latent_dim
+    pred_curr_obs = obs#learner.model.predictor.forward(z) # N x 1 x obs_dim
     pred_next_obs = [pred_curr_obs]
-    current_z = z
+    current_z = obs#z
     for i in range(k):
-        current_z = learner.model.next_latent(current_z, actions[:, i])
-        obs_pred = learner.model.predictor.forward(current_z)
+        #current_z =pred_curr_obs #learner.model.next_latent(current_z, actions[:, i])
+        obs_pred = learner.model.next_latent(current_z, actions[:, i])
+        current_z = obs_pred  # Update current_z for next prediction
         pred_next_obs.append(obs_pred)
     pred_next_obs = torch.stack(pred_next_obs, dim=1)    # N x k+1 x obs_dim
     
-    # Compute errors
     idx = 0
+    # Compute errors
     for key in obs_keys:
         if key == 'total':
             true_key = true_next_obs[..., :]
             pred_key = pred_next_obs[..., :]
         else:
             dim = key_dimensions[key]['dim']
+            #idx = key_dimensions[key]['idx_start']
             true_key = true_next_obs[..., idx : idx + dim]
             pred_key = pred_next_obs[..., idx : idx + dim]
-            idx += dim
+            idx += dim  # Update index for next key
         
         # Compute errors
         error = true_key - pred_key
@@ -179,11 +184,6 @@ def plot_k_step_errors(
     """Enhanced plotting function with better visibility for error bands."""
     plt.ioff()
     matplotlib.style.use('ggplot')
-
-    dir_name= f"plots_{fig_prefix}" 
-
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
     
     for key, metrics in results.items():
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
@@ -241,8 +241,7 @@ def plot_k_step_errors(
             ax2.grid(True, linestyle='--', alpha=0.6)
         
         plt.tight_layout()
-
-        filename = f"{dir_name}/{fig_prefix}_{key.lower().replace(' ', '_')}.png"
+        filename = f"{fig_prefix}_{key.lower().replace(' ', '_')}.png"
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close(fig)
         print(f"Saved plot for {key} to {filename}")
@@ -250,28 +249,27 @@ def plot_k_step_errors(
 
 
 if __name__ == "__main__":
-    from tune_architecture import KEY_DIMENSIONS, TrajectoryDataset, LatentDynamicsLearner, LatentDynamicsModel, LatentLearnerCfg
-    model_path = 'model_5keys_latent16_[256,128].pt'
-    fig_prefix = 'sim_model_5keys_latent16_[256,128]'
-    dataset_path = 'episodes_states_sim_23dof_new_merged_100.npy'
+    from sep_vae_dyn import KEY_DIMENSIONS, TrajectoryDataset, LatentDynamicsLearner, LatentDynamicsModel, LatentLearnerCfg
+    model_path = 'model_520.pt'
+    fig_prefix = 'range_real_dataset_norm'
+    dataset_path = 'episodes_states_real_23dof.npy'
     variance_type = 'norm'    # quantile or std
-    obs_keys = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_euler', 'joint_pos']
-    pred_targets_keys = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_euler', 'joint_pos']
-    seq_len = 24
-    latent_dim = 16#32
+    obs_keys = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_quat', 'joint_pos']
+    pred_targets_keys = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_quat', 'joint_pos']
+    seq_len = 12
+    latent_dim = 32
     gru_hidden_dim = 32
     eval_pct = 0.6
-    max_k = 20
+    max_k = 10
     quantiles = [0.25, 0.75]
     
     cfg = LatentLearnerCfg(
-        eval_pct=0.99,#eval_pct,
+        eval_pct=eval_pct,
         dataset_path=dataset_path,
         seq_len=seq_len,
         latent_dim=latent_dim,
-        log_dir='./logs',
-        obs_keys=obs_keys,
-        pred_targets_keys=pred_targets_keys,
+        gru_hidden_dim=gru_hidden_dim,
+        log_dir='./logs'
     )
     
     config = cfg.to_dict()

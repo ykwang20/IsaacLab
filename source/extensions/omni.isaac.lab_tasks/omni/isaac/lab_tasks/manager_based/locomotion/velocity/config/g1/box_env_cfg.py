@@ -74,7 +74,10 @@ class G1Rewards:
     air_penalty = RewTerm(func=mdp.body_air_time, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",
                                              body_names=[ ".*"]), "threshold": 1.0,})
     knee_air_time_penalty = RewTerm(func=mdp.knee_air_time, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",
-                                             body_names=[ ".*_hip_roll_link",".*_hip_yaw_link",".*_knee_link",".*_ankle_roll_link","torso_link"]), "threshold": 1.0,})
+                                             body_names=[ ".*_hip_roll_link",".*_hip_yaw_link",".*_knee_link",".*_ankle_roll_link", "torso_link"]),
+                                              "torso_bodies_sensor_cfg": SceneEntityCfg("torso_bodies_contact",
+                                             body_names=[ "torso_link"]),"threshold": 1.0,})
+    
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
     #TODO: base vel
     base_vel_penalty=RewTerm(func=mdp.base_lin_ang_vel, weight=-0.001)
@@ -171,15 +174,15 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     border_width=10.0,
     num_rows=10,
     num_cols=20,
-    # num_rows=2,
-    # num_cols=2,
+    # num_rows=1,
+    # num_cols=1,
     # border_width=2.0,
     horizontal_scale=0.1,
     vertical_scale=0.005,
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.6, 0.8), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.55, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -294,6 +297,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
     actions: ActionsCfg = ActionsCfg()
     curiosity: CuriosityCfg = CuriosityCfg()
 
+
     def __post_init__(self):
         # post init of parent
         # Scene
@@ -301,6 +305,15 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.robot = G1_29_ANNEAL_23_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         #self.scene.contact_forces.history_length = 16
+        # TODO: always check this
+        self.scene.torso_bodies_contact.filter_prim_paths_expr = ["{ENV_REGEX_NS}/Robot/left_elbow_link",
+                                                                  "{ENV_REGEX_NS}/Robot/right_elbow_link",
+                                                                    "{ENV_REGEX_NS}/Robot/left_wrist_yaw_link",
+                                                                    "{ENV_REGEX_NS}/Robot/right_wrist_yaw_link",
+                                                                    "{ENV_REGEX_NS}/Robot/left_wrist_pitch_link",
+                                                                    "{ENV_REGEX_NS}/Robot/right_wrist_pitch_link",
+                                                                    "{ENV_REGEX_NS}/Robot/left_wrist_roll_link",
+                                                                    "{ENV_REGEX_NS}/Robot/right_wrist_roll_link",]
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
         #self.scene.height_scanner.pattern_cfg=patterns.GridPatternCfg(resolution=0.2, size=[1.6, 1.0])
        

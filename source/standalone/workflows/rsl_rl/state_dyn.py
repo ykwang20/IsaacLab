@@ -56,7 +56,7 @@ from omni.isaac.lab.utils import configclass
 from rsl_rl.utils import store_code_state, resolve_nn_activation
 from collections import defaultdict
 import argparse
-from k_step_evaluate import compute_batch_k_step_errors
+from k_step_evaluate_dyn import compute_batch_k_step_errors
 
 #############################################
 # Key dimensions
@@ -358,7 +358,7 @@ class LatentDynamicsModel(nn.Module):
         Usually used for the sequence transitions.
         """
         outputs = self.vae_forward(obs)
-        dynamics_input = torch.cat([outputs["latent"], actions], dim=-1)
+        dynamics_input = torch.cat([obs, actions], dim=-1)
         next_latent_pred = self.dynamics(dynamics_input)
         outputs["next_latent_pred"] = next_latent_pred
         return outputs
@@ -510,13 +510,13 @@ class LatentDynamicsLearner:
         # Next-latent target from next_obs
         with torch.no_grad():
             latent_now = self.model.latent(obs)               # (B, seq_len, latent_dim)
-            next_latent_target = self.model.latent(next_obs)  # (B, seq_len, latent_dim)
+            next_latent_target = next_obs  # (B, seq_len, latent_dim)
 
         if self.cfg["dynamics_loss_to_encoder"]:
             # adapte VAE encoder
             next_latent_pred = outputs["next_latent_pred"]  # shape (B, seq_len, latent_dim)
         else:
-            next_latent_pred = self.model.next_latent(latent_now, actions)
+            next_latent_pred = self.model.next_latent(obs, actions)
 
         # We only compute the dynamics loss on non-terminated transitions
         non_terminated_mask = ~terminated
@@ -762,8 +762,8 @@ class LatentModelCfg:
         self.predictor_cfg.output_dim = self.pred_targets_dim
         self.predictor_cfg.name = "predictor"
 
-        self.dynamics_cfg.input_dim = self.latent_dim + self.act_dim
-        self.dynamics_cfg.output_dim = self.latent_dim
+        self.dynamics_cfg.input_dim = self.obs_dim + self.act_dim
+        self.dynamics_cfg.output_dim = self.obs_dim
         self.dynamics_cfg.name = "dynamics"
         self.dynamics_cfg.__post_init__()
 
@@ -788,8 +788,8 @@ class LatentLearnerCfg:
     dynamics_loss_to_encoder = False
 
     # For demonstration, we add new fields:
-    vae_epoches = 250
-    dyn_epoches = 0 #600
+    vae_epoches = 0#250
+    dyn_epoches = 600 #600
     epoches = 50
 
     # define keys
