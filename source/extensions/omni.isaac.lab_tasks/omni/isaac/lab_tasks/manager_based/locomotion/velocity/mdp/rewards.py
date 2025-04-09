@@ -197,7 +197,10 @@ def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = Scene
     #     user_input = input("Input Enter")
     #print('move in direction:',torch.where(condition,torch.zeros_like(raw_reward),raw_reward))
     #print('move in direction reward:', torch.where(reward > 0, reward, 2*reward))
-    return torch.where(reward > 0, reward, 10*reward)  # Penalize negative reward sharply
+    # print('move in direction reward:', torch.where(reward > 0, reward, 4*reward*vel.norm(dim=-1)))
+    # print('vel norm:',vel.norm(dim=-1))
+    # user_input = input("Input Enter")
+    return torch.where(reward > 0, reward, 5*reward*vel.norm(dim=-1))  # Penalize negative reward sharply
     #return torch.where(condition,torch.zeros_like(raw_reward),raw_reward)
 
 def joint_velocity_limits(
@@ -357,9 +360,9 @@ def knee_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, feet_senso
     # #     print('pos error square:', pos_error_sqaure[0])
     #      user_input = input("Input Enter")
     #print('knee air time:', (torch.exp(20*air_time)-1))
-    reward=(torch.exp(20*air_time)-1)#.clip(max=200.0)
-    #print('reward:',torch.where(feet_air, reward, torch.zeros_like(reward)))
-    return torch.where(root_pos>1.5, reward, torch.zeros_like(reward))
+    reward=(torch.exp(20*air_time)-1).clip(max=2000.0)
+    #print('reward:',torch.where(root_pos>1.5, reward, torch.zeros_like(reward)))
+    return torch.where(root_pos>1.59, reward, torch.zeros_like(reward))
 
 def success_bonus(
     env: ManagerBasedRLEnv,sensor_cfg: SceneEntityCfg, success_distance:float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
