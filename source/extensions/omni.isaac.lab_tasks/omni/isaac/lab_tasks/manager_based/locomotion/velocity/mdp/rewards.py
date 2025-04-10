@@ -200,7 +200,7 @@ def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = Scene
     # print('move in direction reward:', torch.where(reward > 0, reward, 4*reward*vel.norm(dim=-1)))
     # print('vel norm:',vel.norm(dim=-1))
     # user_input = input("Input Enter")
-    return torch.where(reward > 0, reward, 5*reward*vel.norm(dim=-1))  # Penalize negative reward sharply
+    return torch.where(reward > 0, reward, reward)  # Penalize negative reward sharply
     #return torch.where(condition,torch.zeros_like(raw_reward),raw_reward)
 
 def joint_velocity_limits(
@@ -237,6 +237,11 @@ def base_lin_ang_vel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     # print('base lin vel:',torch.norm(asset.data.root_com_lin_vel_b[:, :],dim=-1))
     # print('base ang vel:',torch.norm(asset.data.root_com_ang_vel_b[:, :],dim=-1))
     return torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)+0.02*torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)
+
+def base_lin_vel_clip(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset=env.scene[asset_cfg.name]
+    norm_lin_vel=(torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)-1).clip(min=0)
+    return norm_lin_vel
 
 def feet_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize the acceleration of the feet using L2-kernel."""
@@ -356,9 +361,10 @@ def knee_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, feet_senso
     #print('body ids:',sensor_cfg.body_ids)
     #print('bodies air time:', bodies_air_time)
     # print('air time:', air_time)
-    # if air_time < 0.0001:
+    #if air_time > 0.0001:
     # #     print('pos error square:', pos_error_sqaure[0])
-    #      user_input = input("Input Enter")
+          #user_input = input("Input Enter")
+          #print('root pos:',root_pos)
     #print('knee air time:', (torch.exp(20*air_time)-1))
     reward=(torch.exp(20*air_time)-1).clip(max=2000.0)
     #print('reward:',torch.where(root_pos>1.5, reward, torch.zeros_like(reward)))

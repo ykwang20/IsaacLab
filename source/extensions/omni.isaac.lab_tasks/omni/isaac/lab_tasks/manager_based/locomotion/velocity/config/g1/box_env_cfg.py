@@ -84,7 +84,8 @@ class G1Rewards:
     
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
     #TODO: base vel
-    base_vel_penalty=RewTerm(func=mdp.base_lin_ang_vel, weight=-0.001)
+    #base_vel_penalty=RewTerm(func=mdp.base_lin_ang_vel, weight=-0.001)
+    base_vel_penalty=RewTerm(func=mdp.base_lin_vel_clip, weight=-5)
     power_penalty=RewTerm(func=mdp.power_consumption, weight=-0.00001)
     #body_height = RewTerm(func=mdp.body_height, weight=1.2)
     action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.0002,params={"action_name":"joint_pos"})
@@ -186,7 +187,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.55, 0.8), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.7, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -358,7 +359,7 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
         # make a smaller scene for play
         self.scene.num_envs = 10
         self.scene.env_spacing = 2.5
-        self.episode_length_s =5# 2.5#10.0
+        self.episode_length_s =2.5#10.0
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
         # reduce the number of terrains to save memory
