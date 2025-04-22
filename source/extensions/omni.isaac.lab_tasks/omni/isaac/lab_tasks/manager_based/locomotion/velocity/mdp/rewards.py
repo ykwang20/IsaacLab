@@ -15,7 +15,7 @@ import torch
 from typing import TYPE_CHECKING
 
 from omni.isaac.lab.managers import SceneEntityCfg
-from omni.isaac.lab.sensors import ContactSensor
+from omni.isaac.lab.sensors import ContactSensor, ContactSensorZ
 from omni.isaac.lab.utils.math import quat_rotate_inverse, yaw_quat
 
 if TYPE_CHECKING:
@@ -200,7 +200,7 @@ def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = Scene
     # print('move in direction reward:', torch.where(reward > 0, reward, 4*reward*vel.norm(dim=-1)))
     # print('vel norm:',vel.norm(dim=-1))
     # user_input = input("Input Enter")
-    return torch.where(reward > 0, reward, reward)  # Penalize negative reward sharply
+    return torch.where(reward > 0, reward, 5*reward)  # Penalize negative reward sharply
     #return torch.where(condition,torch.zeros_like(raw_reward),raw_reward)
 
 def joint_velocity_limits(
@@ -241,6 +241,7 @@ def base_lin_ang_vel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
 def base_lin_vel_clip(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     asset=env.scene[asset_cfg.name]
     norm_lin_vel=(torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)-1).clip(min=0)
+    #print('base lin vel:',norm_lin_vel)
     return norm_lin_vel
 
 def feet_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -313,7 +314,21 @@ def body_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold:
     # extract the used quantities (to enable type-hinting)
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
     bodies_air_time=contact_sensor.data.current_air_time[:, sensor_cfg.body_ids]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    # contact_forces = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0]
     air_time=bodies_air_time.min(dim=1)[0]
+    if air_time > 0.0001:
+        user_input = input("Input Enter")
+    else:
+        #print('bodies air time:', bodies_air_time)
+        idx_list = torch.nonzero(bodies_air_time[0] < 0.001).squeeze(-1).tolist()
+        #print('idx list:', idx_list)
+
+        print('contact body:', [contact_sensor.body_names[i] for i in idx_list])
+        #print('contact forces:', contact_forces[0, idx_list])
+        print('contact forces:',net_contact_forces[0, 0,idx_list, :])
+
+   
     return torch.exp(20*air_time)-1
     # net_contact_forces = contact_sensor.data.net_forces_w_history
     # # check if any contact force exceeds the threshold
@@ -323,6 +338,49 @@ def body_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold:
     # on_air = torch.logical_and(on_air, env.episode_length_buf>20)
     # #print('on air:',on_air)
     # return on_air
+
+def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, lower_sensor_cfg: SceneEntityCfg,threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Terminate when the contact force on the sensor exceeds the force threshold."""
+    # penelize the time spent when there are at least one group of bodies in the air
+    asset = env.scene[asset_cfg.name]
+
+    contact_sensor: ContactSensorZ = env.scene.sensors[upper_sensor_cfg.name]
+
+    upper_bodies_air_time=contact_sensor.data.current_air_time[:, upper_sensor_cfg.body_ids]
+    lower_bodies_air_time=contact_sensor.data.current_air_time[:, lower_sensor_cfg.body_ids]
+
+    upper_air_time=upper_bodies_air_time.min(dim=1)[0]
+    lower_air_time=lower_bodies_air_time.min(dim=1)[0]
+
+    air_time=torch.maximum(upper_air_time, lower_air_time)
+    root_pos=asset.data.root_pos_w[:, :]-env.scene.env_origins[:,:]
+    #print('root height:',root_height)
+    activated = torch.logical_and(root_pos[:,2]> 0.55,contact_sensor.activated)
+    activated = torch.logical_and(activated, root_pos[:,0]> 1.35)
+    air_time=torch.where(activated, air_time, torch.zeros_like(air_time))
+    bodies_id_list=upper_sensor_cfg.body_ids + lower_sensor_cfg.body_ids
+    #print('activated:',contact_sensor.activated)
+    # print('upper body names:', [contact_sensor.body_names[i] for i in upper_sensor_cfg.body_ids])
+    # print('lower body names:', [contact_sensor.body_names[i] for i in lower_sensor_cfg.body_ids])
+    #if air_time > 0.0001:
+    #user_input = input("Input Enter")
+    #print('air time:', air_time)
+    #else:
+    #print('bodies air time:', bodies_air_time)
+    bodies_air_time=contact_sensor.data.current_air_time[:, :]
+    idx_list= torch.nonzero(bodies_air_time[0] < 0.001).squeeze(-1).tolist()
+    # lower_idx_list = torch.nonzero(lower_bodies_air_time[0] < 0.001).squeeze(-1).tolist()
+    # upper_idx_list = torch.nonzero(upper_bodies_air_time[0] < 0.001).squeeze(-1).tolist()
+    # #print('idx list:', idx_list)
+
+    #print('contact body:', [contact_sensor.body_names[i] for i in idx_list if i in bodies_id_list])
+    #     #print('contact forces:', contact_forces[0, idx_list])
+    # net_contact_forces = contact_sensor.data.net_forces_w_history
+
+    # print('contact forces:',net_contact_forces[0, 0,lower_sensor_cfg.body_ids, :])
+    # print('air time:', air_time)
+   
+    return (torch.exp(20*air_time)-1).clip(max=200.0)
 
 def feet_in_air(env: ManagerBasedRLEnv, feet_sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
     """Terminate when the contact force on the sensor exceeds the force threshold."""
@@ -367,8 +425,9 @@ def knee_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, feet_senso
           #print('root pos:',root_pos)
     #print('knee air time:', (torch.exp(20*air_time)-1))
     reward=(torch.exp(20*air_time)-1).clip(max=2000.0)
+    #print('root pos:',root_pos)
     #print('reward:',torch.where(root_pos>1.5, reward, torch.zeros_like(reward)))
-    return torch.where(root_pos>1.59, reward, torch.zeros_like(reward))
+    return torch.where(root_pos>1.68, reward, torch.zeros_like(reward))
 
 def success_bonus(
     env: ManagerBasedRLEnv,sensor_cfg: SceneEntityCfg, success_distance:float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")

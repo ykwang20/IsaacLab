@@ -172,9 +172,12 @@ class RslRlVecEnvWrapper(VecEnv):
         # return observations
         return obs_dict["policy"], {"observations": obs_dict}
 
-    def step(self, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict]:
+    def step(self, actions: torch.Tensor, safety_val=None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict]:
         # record step information
-        obs_dict, rew, terminated, truncated, extras = self.env.step(actions)
+        if safety_val is None:
+            obs_dict, rew, terminated, truncated, extras = self.env.step(actions)
+        else:
+            obs_dict, rew, terminated, truncated, extras = self.env.step(actions,safety_val=safety_val)
         # compute dones for compatibility with RSL-RL
         dones = (terminated | truncated).to(dtype=torch.long)
         # move extra observations to the extras dict

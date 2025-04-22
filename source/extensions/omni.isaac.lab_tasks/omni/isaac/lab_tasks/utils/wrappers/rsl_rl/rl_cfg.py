@@ -73,6 +73,8 @@ class RslRlPpoAlgorithmCfg:
     """The maximum gradient norm."""
     
     rnd_cfg: dict | None = None
+    
+    symmetry_cfg: dict | None = None
 
 
 @configclass

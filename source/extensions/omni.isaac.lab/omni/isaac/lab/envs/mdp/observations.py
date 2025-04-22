@@ -50,6 +50,11 @@ def base_ang_vel(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCf
     asset: RigidObject = env.scene[asset_cfg.name]
     return asset.data.root_com_ang_vel_b
 
+def base_acc(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset: RigidObject = env.scene[asset_cfg.name]
+    root_id=asset.find_bodies("torso_link")[0]
+    return torch.sum(torch.square(asset.data.body_lin_acc_w[:, root_id,:]), dim=-1)
+
 
 def projected_gravity(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Gravity projection on the asset's root frame."""
@@ -282,6 +287,18 @@ def body_contact_forces(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> t
     net_contact_forces = contact_sensor.data.net_forces_w_history
     # compute the violation    
     return torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0]>0.1
+
+def max_contact_forces(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalize contact forces as the amount of violations of the net contact force."""
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    # compute the violation    
+    forces=torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0]
+    max_contact = torch.max(forces,dim=1)[0]
+    return max_contact
+
+
 
 def image(
     env: ManagerBasedEnv,

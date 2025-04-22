@@ -6,5 +6,7 @@
 """Sub-module for rigid contact sensor based on :class:`omni.isaac.core.prims.RigidContactView`."""
 
 from .contact_sensor import ContactSensor
+from .contact_sensor_z import ContactSensorZ
 from .contact_sensor_cfg import ContactSensorCfg
+from .contact_sensor_z_cfg import ContactSensorZCfg
 from .contact_sensor_data import ContactSensorData

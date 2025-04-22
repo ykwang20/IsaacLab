@@ -43,6 +43,8 @@ import gymnasium as gym
 import os
 import torch
 import numpy as np
+import pickle
+import torch.nn as nn  
 
 from rsl_rl.runners import OnPolicyRunner
 
@@ -51,7 +53,7 @@ from omni.isaac.lab.utils.dict import print_dict
 
 import omni.isaac.lab_tasks  # noqa: F401
 import copy
-from omni.isaac.lab_tasks.utils import get_checkpoint_path, parse_env_cfg
+from omni.isaac.lab_tasks.utils import get_checkpoint_path, parse_env_cfg, SingleBVPNet
 from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
     RslRlOnPolicyRunnerCfg,
     RslRlVecEnvWrapper,
@@ -113,6 +115,30 @@ def main():
         ppo_runner.alg.actor_critic, normalizer=ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.onnx"
     )
 
+    with open("orig_opt.pickle", "rb") as opt_file:
+        orig_opt = pickle.load(opt_file)
+
+    failure_classifier = torch.jit.load("failure_classifier_D2.pt", map_location="cuda:0")
+    brt_model = SingleBVPNet(
+        in_features=17,
+        out_features=1,
+        type=orig_opt.model,
+        mode=orig_opt.model_mode,
+        final_layer_factor=1.0,
+        hidden_features=orig_opt.num_nl,
+        num_hidden_layers=orig_opt.num_hl,
+    )
+    state_dict=torch.load('brt_for_video.pth',map_location="cuda:0")
+    brt_model.load_state_dict(state_dict['model'])
+    brt_model.to('cuda:0')
+
+
+    encoder= torch.jit.load("model_5keys_vae.pt", map_location="cuda:0")
+
+
+    print(brt_model)
+
+
     # reset environment
     obs, _ = env.get_observations()
     timestep = 0
@@ -121,13 +147,34 @@ def main():
     episode=0
     total_terminated=0
     total_fail=0
+    safety=0.1
     #simulate environment
     while simulation_app.is_running():
         # run everything in inference mode
         with torch.inference_mode():
             # agent stepping
             actions = policy(obs)
-            
+            state=env.env.obs_buf['state']
+            state_keys=['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_euler', 'joint_pos']
+            base_pos = state['base_pos']
+            base_lin_vel=state['base_lin_vel']
+            base_ang_vel=state['base_ang_vel']
+            base_euler=state['base_euler']
+            joint_pos=state['joint_pos']
+            state=torch.cat([base_pos,base_lin_vel,base_ang_vel,base_euler,joint_pos],dim=-1)
+            latent=encoder(state)[0]
+            #print('latent',latent)
+            ones=0.48*torch.ones((actions.shape[0],1),device='cuda:0')
+            brt_input=torch.cat([ones,latent],dim=-1)
+            #print('brt_input_ device', brt_input.device)
+            #safety_val=brt_model({'coords':brt_input})['model_out']
+
+            outputs_batch = brt_model({'coords':brt_input})
+            brt_batch = brt_model({'coords':brt_input})['model_out'].squeeze(-1) #clone().cpu()
+            boundary_value = failure_classifier(latent).squeeze(-1)
+            boundary_value = -nn.functional.sigmoid(boundary_value) + 0.5
+            safety_val = (brt_batch*ones.squeeze(-1)*0.5/0.02 + boundary_value)
+            #print(safety_val)
             # Add uniform action noise
             noise = torch.rand_like(actions) * 3 - 1.5  # Uniform noise in [-1.5,1.5]
             #noise = torch.rand_like(actions) * 0.2 - 0.1  # Uniform noise in [-1.5,1.5]
@@ -136,7 +183,13 @@ def main():
             # Clip actions to ensure they remain within valid bounds
             
             # env stepping
-            obs, rew, _, extra = env.step(actions)
+            if safety_val[0].item() < -0.02:
+                safety=-1
+            obs, rew, _, extra = env.step(actions, safety_val=safety)
+            if extra['terminated']:
+                safety=1
+        
+            #obs, rew, _, extra = env.step(actions)
             episode += 1
 
             if episode < max_episodes:
@@ -171,8 +224,8 @@ def main():
                 print('total terminated:',total_terminated)
                 print('total fail:',total_fail)
                 all_episodes_states_array = np.array(all_episodes_states, dtype=object)
-                np.save("episodes_states_sim_23dof_new_model_last_100.npy", all_episodes_states_array)
-                print("Episodes states saved")
+                # np.save("real_dataset_100_Apr20_wnoise.npy", all_episodes_states_array)
+                # print("Episodes states saved")
                 
         if args_cli.video:
             timestep += 1

@@ -14,9 +14,12 @@ parser.add_argument(
 )
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
 parser.add_argument("--task", type=str, default=None, help="Name of the task.")
+
+
 parser.add_argument("--tune", action="store_true", help="Enable hyperparameter tuning with Ray Tune")
-parser.add_argument("--load_vae", action="store_true", help="whether to load")
-parser.add_argument("--load_path", type=str, default=None, help="Path to load the model from")
+parser.add_argument("--load_dynamics", action="store_true")
+parser.add_argument("--load_model", action='store_true')
+parser.add_argument("--model_path", type=str)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -698,6 +701,11 @@ class LatentDynamicsLearner:
             "optimizer_state": self.optimizer.state_dict()
         }
         torch.save(saved_dict, path)
+        dynamics= self.model.dynamics.eval()
+        scripted_dynamics = torch.jit.script(dynamics)
+        scripted_dynamics.save(path.replace(".pt", "_dynamics.pt"))
+        scripted_vae = torch.jit.script(self.model.encoder)
+        scripted_vae.save(path.replace(".pt", "_vae.pt"))
 
 
     def load(self, path: str, load_dynamics = True, load_optimizer: bool = True):
@@ -771,11 +779,11 @@ class LatentModelCfg:
 class LatentLearnerCfg:
     use_tune = False
     device = 'cuda:0'
-    dataset_path = "episodes_states_sim_23dof_new_merged_100.npy"
+    dataset_path = "/home/legrobot/IsaacLab/real_dataset_100_Apr20_wnoise.npy"
     eval_pct = 0.2
     logger = "wandb"#"tensorboard"
-    log_dir = "./logs/VAE"  # base log directory
-    save_interval = 50
+    log_dir = "./logs/real_all"  # base log directory
+    save_interval = 100
     eval_interval = 2
     seq_len = 12
     k_step = 10
@@ -789,7 +797,7 @@ class LatentLearnerCfg:
 
     # For demonstration, we add new fields:
     vae_epoches = 250
-    dyn_epoches = 0 #600
+    dyn_epoches = 1000
     epoches = 50
 
     # define keys
@@ -799,7 +807,7 @@ class LatentLearnerCfg:
     act_dim = 23
     obs_dim = 57 # place holder. Automatically adjusted with obs keys
     pred_targets_dim = 7 # place holder. Automatically adjusted with pred keys
-    latent_dim = 32
+    latent_dim = 16
     gru_hidden_dim = 32
     model_cfg = LatentModelCfg()
 
@@ -851,16 +859,10 @@ def tune_model(args, config, model_path=None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--tune", action="store_true", help="Enable hyperparameter tuning with Ray Tune")
-    parser.add_argument("--load_dynamics", action="store_true")
-    parser.add_argument("--load_model", action='store_true')
-    parser.add_argument("--model_path", type=str)
-    args = parser.parse_args()
 
     base_config = LatentLearnerCfg().to_dict()
 
-    if args.tune:
+    if args_cli.tune:
         from ray import tune
         base_config["dataset_path"] = os.path.abspath(base_config["dataset_path"])
         base_config["log_dir"] = os.path.abspath(base_config["log_dir"])
@@ -878,9 +880,9 @@ if __name__ == "__main__":
 
         base_config["use_tune"] = True
 
-        model_path=os.path.abspath(args.model_path) if args.model_path else None
+        model_path=os.path.abspath(args_cli.model_path) if args_cli.model_path else None
         analysis = tune.run(
-            lambda config: tune_model(args, config, model_path=model_path),
+            lambda config: tune_model(args_cli, config, model_path=model_path),
             config=base_config,
             storage_path=root_log_dir,
             resources_per_trial={"gpu": 0.3},
@@ -898,6 +900,6 @@ if __name__ == "__main__":
         base_config["log_dir"] = os.path.join(base_config["log_dir"], timestamp)
         base_config["use_tune"] = False
         learner = LatentDynamicsLearner(base_config)
-        if args.load_model:
-            learner.load(args.model_path, load_dynamics=args.load_dynamics, load_optimizer=False)
+        if args_cli.load_model:
+            learner.load(args_cli.model_path, load_dynamics=args_cli.load_dynamics, load_optimizer=False)
         learner.learn()

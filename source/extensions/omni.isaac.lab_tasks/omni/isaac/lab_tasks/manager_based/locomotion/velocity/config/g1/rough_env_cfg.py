@@ -34,6 +34,10 @@ FLAT_AND_ROUGH_CFG = terrain_gen.TerrainGeneratorCfg(
     border_width=19.0,
     num_rows=10,
     num_cols=20,
+    # size=(8.0, 8.0),
+    # border_width=4.0,
+    # num_rows=1,
+    # num_cols=1,
     horizontal_scale=0.1,
     vertical_scale=0.005,
     slope_threshold=0.75,
@@ -42,9 +46,12 @@ FLAT_AND_ROUGH_CFG = terrain_gen.TerrainGeneratorCfg(
         
         "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
             proportion=0.5, noise_range=(0.02, 0.10), noise_step=0.02, border_width=0.25
+            #proportion=0.99, noise_range=(0.02, 0.10), noise_step=0.02, border_width=0.25
         ),
         "hf_pyramid_slope": terrain_gen.HfPyramidSlopedTerrainCfg(
             proportion=0.5, slope_range=(0.0, 0.0), platform_width=2.0, border_width=0.25
+            #proportion=0.01, slope_range=(0.0, 0.0), platform_width=2.0, border_width=0.25
+
         ),
        
     },
@@ -394,8 +401,8 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     rewards: G1Rewards = G1Rewards()
     terminations: TerminationsCfg = TerminationsCfg()
     observations: ObservationsCfg = ObservationsCfg()
-    events: SimEventCfg = SimEventCfg()
-    #events: RealEventCfg = RealEventCfg()
+    #events: SimEventCfg = SimEventCfg()
+    events: RealEventCfg = RealEventCfg()
 
     def __post_init__(self):
         # post init of parent
@@ -411,7 +418,7 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     #     self.events.push_robot=EventTerm(
     #     func=mdp.push_by_setting_velocity,
     #     mode="interval",
-    #     interval_range_s=(2.0, 2.1),
+    #     interval_range_s=(1.0, 1.1),
     #     params={"velocity_range": {"x": (-5, 5), "y": (-3, 3)}},
     # )
         #self.events.add_base_mass = None

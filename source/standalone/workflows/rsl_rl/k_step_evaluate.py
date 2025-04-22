@@ -251,8 +251,8 @@ def plot_k_step_errors(
 
 if __name__ == "__main__":
     from tune_architecture import KEY_DIMENSIONS, TrajectoryDataset, LatentDynamicsLearner, LatentDynamicsModel, LatentLearnerCfg
-    model_path = 'model_5keys_latent16_[256,128].pt'
-    fig_prefix = 'sim_model_5keys_latent16_[256,128]'
+    model_path = 'model_5keys_latent16.pt'
+    fig_prefix = 'sim_sim'
     dataset_path = 'episodes_states_sim_23dof_new_merged_100.npy'
     variance_type = 'norm'    # quantile or std
     obs_keys = ['base_pos', 'base_lin_vel', 'base_ang_vel', 'base_euler', 'joint_pos']
@@ -261,7 +261,7 @@ if __name__ == "__main__":
     latent_dim = 16#32
     gru_hidden_dim = 32
     eval_pct = 0.6
-    max_k = 20
+    max_k = 10
     quantiles = [0.25, 0.75]
     
     cfg = LatentLearnerCfg(

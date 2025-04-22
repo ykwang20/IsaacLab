@@ -35,8 +35,6 @@ class G1Rewards:
     """Reward terms for the MDP."""
     #TODO: add termination penalty and replace alive reward
     # -- task
-    #track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)})
-    #track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_exp, weight=1.5, params={"command_name": "base_velocity", "std": math.sqrt(0.25)})
     position_tracking = RewTerm(func=mdp.position_tracking, weight=4.,
                                   params={"command_name": "target_pos_e","start_time": 0})
     # position_tracking_cos = RewTerm(func=mdp.position_tracking_cos, weight=20.,
@@ -45,18 +43,9 @@ class G1Rewards:
     #move_in_direction = RewTerm(func=mdp.move_in_direction, weight=5.0,params={"command_name": "target_pos_e"})
     move_in_direction = RewTerm(func=mdp.move_in_direction, weight=1.0,params={"command_name": "target_pos_e"})
     #termination_penalty = RewTerm(func=mdp.contact_terminated, weight=-200.0)
-    #success_rew = RewTerm(func=mdp.stepped_terminated, weight=20000)
-    #air_term_penalty = RewTerm(func=mdp.air_terminated, weight=-1000)
-    #termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.)
-    # success_bonus = RewTerm(
-    #     func=mdp.success_bonus,
-    #     weight=2000,#400.0,
-    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
-    #     "success_distance": 0.06,}
-    # )
+    
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-5,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-    #torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-4,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-0.1, params={"soft_ratio": 1., "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     #torque_lim_penalty=RewTerm(func=mdp.applied_torque_limits, weight=-0.002,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     joint_acc_penalty=RewTerm(func=mdp.joint_acc_l2, weight=-2e-8,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
@@ -64,18 +53,23 @@ class G1Rewards:
     feet_acc_penalty=RewTerm(func=mdp.feet_acc, weight=-0.00002)
     rigid_body_acc_penalty=RewTerm(func=mdp.body_lin_acc_l2, weight=-0.0002,params={"asset_cfg" :SceneEntityCfg("robot", 
                                             body_names=[".*"])})
-    # contact_penalty=RewTerm(func=mdp.contact_forces, weight=-0.005,
-    #                         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"]), 
-    #                                 "threshold": 650.0})
     contact_exp_penalty=RewTerm(func=mdp.contact_forces_exp, weight=-0.1,
                             params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"]), 
-                                    "threshold": 500.0,"grad_scale":0.0025})
+                                     "threshold": 500.0,"grad_scale":0.0025})
+                                    #"threshold": 500.0,"grad_scale":0.01})
     #alive_reward=RewTerm(func=mdp.is_alive, weight=5)#100
-    air_penalty = RewTerm(func=mdp.body_air_time, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",
-                                             body_names=[ ".*"]), "threshold": 1.0,})
+    # air_penalty = RewTerm(func=mdp.body_air_time, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",
+    #                                          body_names=[ ".*"]), "threshold": 1.0,})
+
+    group_air_penalty = RewTerm(func=mdp.group_air_time, weight=-1,params={"upper_sensor_cfg": SceneEntityCfg("contact_forces_z",
+                                                                            body_names=[ ".*wrist.*",".*elbow_link",]), 
+                                                                            "lower_sensor_cfg": SceneEntityCfg("contact_forces_z",
+                                                                            body_names=[ ".*_hip_yaw_link",".*_knee_link",".*_ankle_roll_link"]),
+                                                                            "threshold": 1.0,})
     knee_air_time_penalty = RewTerm(func=mdp.knee_air_time, weight=-1,params={
                                             "sensor_cfg": SceneEntityCfg("contact_forces",
-                                             body_names=[ ".*_hip_roll_link",".*_hip_yaw_link",".*_knee_link", "torso_link","pelvis_contour_link"]),
+                                            #  body_names=[ ".*_hip_roll_link",".*_hip_yaw_link",".*_knee_link", "torso_link","pelvis_contour_link"]),
+                                             body_names=[ ".*_hip_yaw_link",".*_knee_link",]),
                                              "feet_sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_ankle_roll_link"]),
                                               "torso_bodies_sensor_cfg": SceneEntityCfg("torso_bodies_contact",
                                              body_names=[ "torso_link"]),
@@ -84,43 +78,22 @@ class G1Rewards:
     
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
     #TODO: base vel
-    #base_vel_penalty=RewTerm(func=mdp.base_lin_ang_vel, weight=-0.001)
     base_vel_penalty=RewTerm(func=mdp.base_lin_vel_clip, weight=-5)
     power_penalty=RewTerm(func=mdp.power_consumption, weight=-0.00001)
-    #body_height = RewTerm(func=mdp.body_height, weight=1.2)
     action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.0002,params={"action_name":"joint_pos"})
+    #action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.001,params={"action_name":"joint_pos"})
 
-    #stand_at_target=RewTerm(func=mdp.stand_at_target, weight=-0.5,
-    #                params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
-    # stable_at_target=RewTerm(func=mdp.stable_at_target, weight=-0.5,
-    #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"]), "command_name": "target_pos_e"})
-    # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.05,#weight=-0.05,
-    #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+   
     joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#-0.005,
                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-    # feet_air_time = RewTerm(
-    #     func=mdp.feet_air_time_positive_biped,
-    #     weight=0.25,
-    #     params={
-    #         "command_name": "base_velocity",
-    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
-    #         "threshold": 0.4,
-    #     },
-    # )
-    #flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-1)
-    # undesired_contacts = RewTerm(
-    #     func=mdp.undesired_contacts,
-    #     weight=-1.0,
-    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},
-    # )
+   
+   
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.005)
     #curiosity_rnd = RewTerm(func=mdp.curiosity, weight=200)
     #curiosity_cnt = RewTerm(func=mdp.curiosity_cnt, weight=2000)
     joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-0.1,)
 
 
-# @configclass
-# class RoughRewards:
 
     
 
@@ -187,7 +160,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.7, 0.8), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.8, 0.9), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -249,11 +222,14 @@ class ObservationsCfg:
         base_quat = ObsTerm(func=mdp.root_quat_w)
         joint_pos = ObsTerm(func=mdp.joint_pos_limit_normalized)
         contact_forces = ObsTerm(func=mdp.body_contact_forces, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"])} )
-
+        
+        # # Temporary for testing
+        # max_contact_force = ObsTerm(func=mdp.max_contact_forces,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*",])} )
+        # base_acc = ObsTerm(func=mdp.base_acc)
 
         def __post_init__(self):
             self.enable_corruption = False#True
-            self.concatenate_terms = True
+            self.concatenate_terms =True
 
     # observation groups
     rnd_state: CuriosityCfg = CuriosityCfg()
@@ -330,7 +306,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (0.7, 1.3)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
-            "pose_range": {"x": (1.2, 1.35), "y": (-1., 1.),"z":(0.03,0.03), "yaw": (0, 0)},
+            "pose_range": {"x": (1.2, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (0, 0)},
             #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
