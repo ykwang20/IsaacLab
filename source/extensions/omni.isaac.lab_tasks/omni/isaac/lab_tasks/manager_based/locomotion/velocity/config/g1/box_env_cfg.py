@@ -66,6 +66,11 @@ class G1Rewards:
                                                                             "lower_sensor_cfg": SceneEntityCfg("contact_forces_z",
                                                                             body_names=[ ".*_hip_yaw_link",".*_knee_link",".*_ankle_roll_link"]),
                                                                             "threshold": 1.0,})
+    # respective_air_penalty = RewTerm(func=mdp.respective_air_time, weight=-1,params={"upper_sensor_cfg": SceneEntityCfg("contact_forces_z",
+    #                                                                         body_names=[ ".*wrist.*",".*elbow_link",]), 
+    #                                                                         "lower_sensor_cfg": SceneEntityCfg("contact_forces_z",
+    #                                                                         body_names=[ ".*_hip_yaw_link",".*_knee_link",".*_ankle_roll_link"]),
+    #                                                                         "threshold": 1.0,})
     knee_air_time_penalty = RewTerm(func=mdp.knee_air_time, weight=-1,params={
                                             "sensor_cfg": SceneEntityCfg("contact_forces",
                                             #  body_names=[ ".*_hip_roll_link",".*_hip_yaw_link",".*_knee_link", "torso_link","pelvis_contour_link"]),
@@ -74,6 +79,7 @@ class G1Rewards:
                                               "torso_bodies_sensor_cfg": SceneEntityCfg("torso_bodies_contact",
                                              body_names=[ "torso_link"]),
                                              "threshold": 1.0,})
+    knee_height_reward = RewTerm(func=mdp.knee_height, weight=0.5)
     #feet_air =RewTerm(func=mdp.feet_in_air, weight=0.1,params={"feet_sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_ankle_roll_link"]),"threshold": 1.0,})
     
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
@@ -133,6 +139,7 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
+    height_low = DoneTerm(func=mdp.root_height_below_minimum, params={'minimum_height':0.45})
     # base_contact = DoneTerm(
     #     func=mdp.illegal_contact,
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},     
@@ -160,7 +167,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.8, 0.9), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.55, 0.9), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -240,6 +247,8 @@ class TargetCurriculumCfg:
 
     terrain_levels = CurrTerm(func=mdp.terrain_levels_target, 
                               params={"reached_distance": 0.1, "minimal_covered": 1.5})
+    #gravity_mag = CurrTerm(func=mdp.gravity_annealing)
+    
     
 @configclass
 class CurriculumCfg:
@@ -306,7 +315,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (0.7, 1.3)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
-            "pose_range": {"x": (1.2, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (0, 0)},
+            "pose_range": {"x": (1.25, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (0, 0)},
             #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -321,6 +330,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         # self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 40
         self.sim.physx.gpu_temp_buffer_capacity = 167772160
         self.sim.physx.gpu_max_rigid_patch_count = 327680
+        #self.sim.gravity = (0.0, 0.0, -9.81*0.5)
 
 
 

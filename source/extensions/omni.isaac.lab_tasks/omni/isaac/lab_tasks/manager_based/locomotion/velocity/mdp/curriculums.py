@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 from omni.isaac.lab.assets import Articulation
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.terrains import TerrainImporter
+import carb
+import omni.isaac.lab.sim as sim_utils
 
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
@@ -118,3 +120,46 @@ def terrain_levels_target(
     terrain.update_env_origins(env_ids, move_up, move_down)
     # return the mean terrain level
     return torch.mean(terrain.terrain_levels.float())
+
+
+def gravity_annealing(
+    env: ManagerBasedRLEnv, env_ids: Sequence[int], min_gravity_ratio: float=0.3, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Curriculum based on the distance the of the robot to the target pos.
+
+    This term is used to increase the difficulty of the terrain when the robot walks close enough to the target and decrease the
+    difficulty ...
+
+    .. note::
+        It is only possible to use this term with the terrain type ``generator``. For further information
+        on different terrain types, check the :class:`omni.isaac.lab.terrains.TerrainImporter` class.
+
+    Returns:
+        The mean terrain level for the given environment ids.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    target_pos_e = env.command_manager.get_command("target_pos_e")
+    target_pos_w=target_pos_e+env.scene.env_origins
+    target_pos_w[:,2]=0
+    # compute the distance the robot walked
+    remaining_distance = torch.norm(target_pos_w[env_ids, :2] - asset.data.root_pos_w[env_ids, :2], dim=1)
+    # robots that walked far enough progress to harder terrains
+    gravity_up = remaining_distance.mean(dim=0) < 0.1
+    physics_sim_view = sim_utils.SimulationContext.instance().physics_sim_view
+    current_g: carb.Float3 = physics_sim_view.get_gravity()
+    g_z =current_g.z
+    if gravity_up:
+        
+
+        if current_g.z > -9.8:  
+            g_z = current_g.z - 0.05*9.81
+            new_g = carb.Float3(
+                current_g.x ,
+                current_g.y ,
+                g_z
+            )
+            physics_sim_view.set_gravity(new_g)
+    
+    return g_z
+
