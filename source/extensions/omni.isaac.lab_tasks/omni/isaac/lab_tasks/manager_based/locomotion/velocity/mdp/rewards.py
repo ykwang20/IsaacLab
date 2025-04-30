@@ -241,6 +241,7 @@ def base_lin_ang_vel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
 def base_lin_vel_clip(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     asset=env.scene[asset_cfg.name]
     norm_lin_vel=(torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)-1).clip(min=0)
+    #input("Input Enter")
     #print('base lin vel:',norm_lin_vel)
     return norm_lin_vel
 
@@ -284,7 +285,7 @@ def body_height(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityC
     """Penalize the acceleration of the feet using L2-kernel."""
     # extract the used quantities (to enable type-hinting)
     asset = env.scene[asset_cfg.name]
-    print('body height',asset.data.root_link_pos_w[:, 2])
+    #print('body height',asset.data.root_link_pos_w[:, 2])
     return asset.data.root_link_pos_w[:, 2]
 
 def stand_at_target(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),) -> torch.Tensor:
@@ -381,7 +382,9 @@ def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, low
     activated = torch.logical_and(contact_sensor.activated, root_pos[:,0]> 1.35)
     air_time=torch.where(activated, air_time, torch.zeros_like(air_time))
     bodies_id_list=upper_sensor_cfg.body_ids + lower_sensor_cfg.body_ids
-    #print('activated:',contact_sensor.activated)
+    # print('activated:',activated)
+    # print('air time:', air_time)
+    # print('root pos:',root_pos[:,0])
     # print('upper body names:', [contact_sensor.body_names[i] for i in upper_sensor_cfg.body_ids])
     # print('lower body names:', [contact_sensor.body_names[i] for i in lower_sensor_cfg.body_ids])
     #if air_time > 0.0001:

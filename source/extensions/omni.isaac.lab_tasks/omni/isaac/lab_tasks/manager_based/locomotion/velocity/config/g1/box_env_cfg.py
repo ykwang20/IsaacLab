@@ -46,7 +46,8 @@ class G1Rewards:
     
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-5,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-    joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-0.1, params={"soft_ratio": 1., "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    #joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-0.1, params={"soft_ratio": 1., "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-1, params={"soft_ratio": 0.9, "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     #torque_lim_penalty=RewTerm(func=mdp.applied_torque_limits, weight=-0.002,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     joint_acc_penalty=RewTerm(func=mdp.joint_acc_l2, weight=-2e-8,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     base_acc_penalty=RewTerm(func=mdp.base_lin_ang_acc, weight=-0.0001)
@@ -79,7 +80,7 @@ class G1Rewards:
                                               "torso_bodies_sensor_cfg": SceneEntityCfg("torso_bodies_contact",
                                              body_names=[ "torso_link"]),
                                              "threshold": 1.0,})
-    knee_height_reward = RewTerm(func=mdp.knee_height, weight=0.5)
+    knee_height_reward = RewTerm(func=mdp.knee_height, weight=1)
     #feet_air =RewTerm(func=mdp.feet_in_air, weight=0.1,params={"feet_sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_ankle_roll_link"]),"threshold": 1.0,})
     
     #feet_height = RewTerm(func=mdp.feet_height, weight=0.5)
@@ -87,7 +88,7 @@ class G1Rewards:
     base_vel_penalty=RewTerm(func=mdp.base_lin_vel_clip, weight=-5)
     power_penalty=RewTerm(func=mdp.power_consumption, weight=-0.00001)
     action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.0002,params={"action_name":"joint_pos"})
-    #action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.001,params={"action_name":"joint_pos"})
+    #action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.002,params={"action_name":"joint_pos"})
 
    
     joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#-0.005,
@@ -97,7 +98,8 @@ class G1Rewards:
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.005)
     #curiosity_rnd = RewTerm(func=mdp.curiosity, weight=200)
     #curiosity_cnt = RewTerm(func=mdp.curiosity_cnt, weight=2000)
-    joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-0.1,)
+    #joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-0.1,)\
+    joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-1,)
 
 
 
@@ -167,7 +169,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.55, 0.9), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.8, 0.9), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )

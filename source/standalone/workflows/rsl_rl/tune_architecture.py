@@ -708,7 +708,7 @@ class LatentDynamicsLearner:
         scripted_vae.save(path.replace(".pt", "_vae.pt"))
 
 
-    def load(self, path: str, load_dynamics = True, load_optimizer: bool = True):
+    def load(self, path: str, load_dynamics = False, load_optimizer: bool = True):
         loaded_dict = torch.load(path)
         if load_dynamics:
             self.model.load_state_dict(loaded_dict["model_state_dict"])
@@ -779,10 +779,10 @@ class LatentModelCfg:
 class LatentLearnerCfg:
     use_tune = False
     device = 'cuda:0'
-    dataset_path = "/home/legrobot/IsaacLab/real_dataset_100_Apr20_wnoise.npy"
+    dataset_path = "/home/legrobot/IsaacLab/episodes_states_sim_23dof_new_merged_100.npy"
     eval_pct = 0.2
     logger = "wandb"#"tensorboard"
-    log_dir = "./logs/real_all"  # base log directory
+    log_dir = "./logs/sim_all"  # base log directory
     save_interval = 100
     eval_interval = 2
     seq_len = 12
@@ -796,7 +796,7 @@ class LatentLearnerCfg:
     dynamics_loss_to_encoder = False
 
     # For demonstration, we add new fields:
-    vae_epoches = 250
+    vae_epoches = 0
     dyn_epoches = 1000
     epoches = 50
 
