@@ -60,6 +60,7 @@ class G1VelBoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 @configclass
 class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    class_name ="OnPolicyRunnerLip"
     num_steps_per_env = 24
     max_iterations = 29000#19000#3000
     save_interval = 500#50
@@ -72,6 +73,8 @@ class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
+        class_name="PPOLIP",
+        grad_penalty_coef=0.002,
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,

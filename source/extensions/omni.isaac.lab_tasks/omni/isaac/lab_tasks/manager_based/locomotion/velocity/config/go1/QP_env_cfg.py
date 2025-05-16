@@ -219,6 +219,7 @@ class UnitreeGo1QPEnvCfg(LocomotionVelocityRoughEnvCfg):
     #     #TODO: the convention is not reasonable
     #     offset=CameraCfg.OffsetCfg(pos=(0., 0., -0.08), rot=(1., 0., 0., 0.), convention="opengl"),
     # )
+    
         self.scene.height_scanner = RayCasterCfg(
             prim_path="{ENV_REGEX_NS}/Robot/trunk",
             offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),

@@ -36,6 +36,9 @@ class RslRlPpoAlgorithmCfg:
     class_name: str = "PPO"
     """The algorithm class name. Default is PPO."""
 
+    grad_penalty_coef: float = MISSING
+    """The coefficient for the gradient penalty."""
+
     value_loss_coef: float = MISSING
     """The coefficient for the value loss."""
 
@@ -80,6 +83,7 @@ class RslRlPpoAlgorithmCfg:
 @configclass
 class RslRlOnPolicyRunnerCfg:
     """Configuration of the runner for on-policy algorithms."""
+    class_name: str = "OnPolicyRunner"
 
     seed: int = 42
     """The seed for the experiment. Default is 42."""

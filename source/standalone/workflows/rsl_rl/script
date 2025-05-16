@@ -1,0 +1,41 @@
+看起来你在尝试使用 `conda develop .` 命令时遇到了一个较为复杂的错误，这与 OpenSSL 库有关。错误的核心是：
+
+```
+AttributeError: module 'lib' has no attribute 'X509_V_FLAG_NOTIFY_POLICY'. Did you mean: 'X509_V_FLAG_EXPLICIT_POLICY'?
+```
+
+这可能是因为 Isaac Sim 的环境和你的 Anaconda 环境之间存在某些版本冲突，特别是关于 OpenSSL 和 boto3 库的冲突。
+
+让我们尝试一个不同的方法来安装 rsl_rl 包。由于 `pip` 似乎在原始错误中也存在问题，我建议：
+
+1. 首先确保你的 isaaclab 环境中有 pip：
+```bash
+conda activate isaaclab
+conda install pip
+```
+
+2. 然后再尝试使用 pip 安装：
+```bash
+pip install -e .
+```
+
+3. 如果上述方法仍然失败，可以尝试直接修改 Python 路径：
+
+```bash
+# 激活 isaaclab 环境
+conda activate isaaclab
+
+# 创建一个简单的 Python 脚本来添加路径
+echo 'import sys; sys.path.append("/home/legrobot/IsaacLab/rsl_rl"); print("Added rsl_rl to Python path")' > add_path.py
+
+# 运行此脚本并验证是否可以导入
+python add_path.py
+python -c "import rsl_rl; print('Successfully imported rsl_rl')"
+```
+
+4. 如果想要永久添加到路径，可以创建一个.pth文件：
+```bash
+echo "/home/legrobot/IsaacLab/rsl_rl" > $(python -c "import site; print(site.getsitepackages()[0])")/rsl_rl.pth
+```
+
+这些方法可能会帮助你绕过当前的环境冲突问题，使你能够在 isaaclab 环境中使用 rsl_rl 包。
