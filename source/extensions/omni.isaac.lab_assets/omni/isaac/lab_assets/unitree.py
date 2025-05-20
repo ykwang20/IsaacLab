@@ -438,7 +438,7 @@ G1_MIN_NOHAND_CFG = ArticulationCfg(
     ),
     soft_joint_pos_limit_factor=0.9,
     actuators={
-        "legs": ImplicitActuatorCfg(
+        "legs": IdealPDActuatorCfg(
             joint_names_expr=[
                 ".*_hip_yaw_joint",
                 ".*_hip_roll_joint",
@@ -480,7 +480,7 @@ G1_MIN_NOHAND_CFG = ArticulationCfg(
                 "torso_joint": 0.01,
             },
         ),
-        "feet": ImplicitActuatorCfg(
+        "feet": IdealPDActuatorCfg(
             effort_limit=50,
             velocity_limit=37,
             joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
@@ -488,7 +488,7 @@ G1_MIN_NOHAND_CFG = ArticulationCfg(
             damping=2.0,
             armature=0.01,
         ),
-        "arms": ImplicitActuatorCfg(
+        "arms": IdealPDActuatorCfg(
             joint_names_expr=[
                 ".*_shoulder_pitch_joint",
                 ".*_shoulder_roll_joint",
@@ -683,7 +683,7 @@ G1_29_ANNEAL_23_CFG = ArticulationCfg(
     ),
     soft_joint_pos_limit_factor=0.9,
     actuators={
-        "legs": ImplicitActuatorCfg(
+        "legs": IdealPDActuatorCfg(
             joint_names_expr=[
                 ".*_hip_yaw_joint",
                 ".*_hip_roll_joint",
@@ -738,7 +738,7 @@ G1_29_ANNEAL_23_CFG = ArticulationCfg(
             },
             friction=0.03
         ),
-        "feet": ImplicitActuatorCfg(
+        "feet": IdealPDActuatorCfg(
             effort_limit=50,
             velocity_limit=37,
             joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
@@ -750,7 +750,7 @@ G1_29_ANNEAL_23_CFG = ArticulationCfg(
             armature=0.03,
             friction=0.03
         ),
-        "arms": ImplicitActuatorCfg(
+        "arms": IdealPDActuatorCfg(
             joint_names_expr=[
                 ".*_shoulder_pitch_joint",
                 ".*_shoulder_roll_joint",

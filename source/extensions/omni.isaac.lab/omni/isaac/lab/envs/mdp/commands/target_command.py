@@ -25,7 +25,7 @@ from omni.isaac.lab.managers import SceneEntityCfg
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedEnv
 
-    from .commands_cfg import NormalVelocityCommandCfg, UniformVelocityCommandCfg, TargetCommandCfg
+    from .commands_cfg import NormalVelocityCommandCfg,  TargetCommandCfg
 
 
 class TargetCommand(CommandTerm):
@@ -71,6 +71,9 @@ class TargetCommand(CommandTerm):
         # -- command: x, y, z(=0) in env coordinates
         self.target_command_e = torch.zeros(self.num_envs, 3, device=self.device)
         self.radius_range = cfg.radius_range
+        self.max_avg_height = torch.zeros(self.num_envs, device=self.device)
+        self.max_com_x = torch.zeros(self.num_envs, device=self.device)
+        self.mass = self.robot.root_physx_view.get_masses().clone().to(self.device)
        
         # # -- metrics
         # self.metrics["error_vel_xy"] = torch.zeros(self.num_envs, device=self.device)
@@ -80,7 +83,7 @@ class TargetCommand(CommandTerm):
 
     def __str__(self) -> str:
         """Return a string representation of the command generator."""
-        msg = "UniformVelocityCommand:\n"
+        msg = "TargetCommand:\n"
         msg += f"\tCommand dimension: {tuple(self.command.shape[1:])}\n"
         msg += f"\tResampling time range: {self.cfg.resampling_time_range}\n"
         # msg += f"\tHeading command: {self.cfg.heading_command}\n"
@@ -150,7 +153,34 @@ class TargetCommand(CommandTerm):
         y_offsets = self.robot.data.root_link_pos_w[env_ids,1] - self._env.scene.env_origins[env_ids,1]
         # 生成最终的点
         self.target_command_e[env_ids,:2]= torch.stack((x_offsets, y_offsets), dim=1)
-    
+
+
+        self.mass.copy_(self.robot.root_physx_view.get_masses())
+
+        # reset avg height of all rigid bodies
+        self.max_avg_height[env_ids] = torch.mean(self.robot.data.body_pos_w[env_ids, :, 2].clip(max=0.02), dim=1)
+
+        body_coms = self.robot.data.body_pos_w[env_ids, :, 0] - self._env.scene.env_origins[env_ids, 0].unsqueeze(1)
+        self.max_com_x[env_ids] =  torch.sum(body_coms * self.mass[env_ids], dim=1) / torch.sum(self.mass[env_ids], dim=1)
+
+
+    def update_max_com_x(self, current_com: torch.Tensor):
+        """Update the average height of the robot in the environment.
+
+        Args:
+            env_ids: The indices of the environments to update.
+        """
+        # update the max height
+        self.max_com_x = torch.max(self.max_com_x, current_com,)
+
+    def update_max_avg_height(self, current_avg: torch.Tensor):
+        """Update the average height of the robot in the environment.
+
+        Args:
+            env_ids: The indices of the environments to update.
+        """
+        # update the max height
+        self.max_avg_height = torch.max(self.max_avg_height, current_avg,)
 
     def _update_command(self):
         """Post-processes the velocity command.

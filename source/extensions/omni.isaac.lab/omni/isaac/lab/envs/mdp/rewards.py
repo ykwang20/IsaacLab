@@ -161,8 +161,20 @@ def joint_vel_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntity
     """
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
+    # input("Input Enter")
     #print('joint velocities:', torch.max(asset.data.joint_vel[:, asset_cfg.joint_ids],dim=-1)[0])
+    max_id=torch.max(asset.data.joint_vel[:, asset_cfg.joint_ids],dim=-1)[1]
+    # print('max id:', max_id)
+    # print('max joint id:', asset.data.joint_names[max_id])
+    
     return torch.sum(torch.square(asset.data.joint_vel[:, asset_cfg.joint_ids]), dim=1)
+
+def joint_vel_exp(env: ManagerBasedRLEnv, grad_scale: float, threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    max_vel = torch.max(asset.data.joint_vel[:, asset_cfg.joint_ids],dim=-1)[0]
+    max_vel = (max_vel-threshold).clip(min=0.)
+    rew=torch.exp(grad_scale*max_vel)-1
+    return rew.clip(max=200)
 
 def joint_vel_clip(env: ManagerBasedRLEnv, threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint velocities on the articulation using L2 squared kernel.

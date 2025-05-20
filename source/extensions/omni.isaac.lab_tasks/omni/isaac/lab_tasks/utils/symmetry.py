@@ -72,7 +72,7 @@ def mirror_xz_plane(observation):
     n_joints = 23
     # Single frame components: root_lin_vel(3) + root_ang_vel(3) + base_quat(4) + base_pos(3) + 
     # target_commands(3) + joint_pos(23) + joint_vel(23) + actions(23) + box_height(1) + time(1)
-    single_frame_dim = 3 + 3 + 4 + 3 + 3 + n_joints + n_joints + n_joints + 1 + 1
+    single_frame_dim = 3 + 3 + 4 + 3 + n_joints + n_joints + n_joints + 1 
     
     # Process each of the 6 frames
     for frame in range(6):
@@ -98,8 +98,8 @@ def mirror_xz_plane(observation):
         # base_pos - keep unchanged as requested
         pos += 3  # Move to next component
         
-        # target_commands - keep unchanged as requested
-        pos += 3  # Move to next component
+        # # target_commands - keep unchanged as requested
+        # pos += 3  # Move to next component
         
         # joint_pos - remap joints and flip signs as needed
         joint_pos_temp = mirrored_obs[..., frame_start + pos:frame_start + pos + n_joints].clone()

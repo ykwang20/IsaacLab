@@ -121,6 +121,35 @@ def terrain_levels_target(
     # return the mean terrain level
     return torch.mean(terrain.terrain_levels.float())
 
+def terrain_levels_height(
+    env: ManagerBasedRLEnv, env_ids: Sequence[int],asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Curriculum based on the distance the of the robot to the target pos.
+
+    This term is used to increase the difficulty of the terrain when the robot walks close enough to the target and decrease the
+    difficulty ...
+
+    .. note::
+        It is only possible to use this term with the terrain type ``generator``. For further information
+        on different terrain types, check the :class:`omni.isaac.lab.terrains.TerrainImporter` class.
+
+    Returns:
+        The mean terrain level for the given environment ids.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    terrain: TerrainImporter = env.scene.terrain
+    
+    lowest_height =  asset.data.body_pos_w[env_ids, :, 2].min(dim=1)[0] 
+    # robots that walked far enough progress to harder terrains
+    move_up = lowest_height > 0.02
+    # robots that walked less than half of their required distance go to simpler terrains
+    move_down = (asset.data.root_link_pos_w[env_ids, 2]-env.scene.env_origins[env_ids,2]) < 0.45
+    move_down *= ~move_up
+    # update terrain levels
+    terrain.update_env_origins(env_ids, move_up, move_down)
+    # return the mean terrain level
+    return torch.mean(terrain.terrain_levels.float())
 
 def gravity_annealing(
     env: ManagerBasedRLEnv, env_ids: Sequence[int], min_gravity_ratio: float=0.3, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")

@@ -162,17 +162,64 @@ def position_tracking_cos(env, command_name: str,  start_time: float,asset_cfg: 
 #     # print('wait penalty:',torch.where(torch.logical_and(vel_x<0.3, pos_error>0.2),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
 #     return torch.where(torch.logical_and(vel_x<0.15, pos_error>0.2),
 #                        torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
+def downward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset = env.scene[asset_cfg.name]
+    max_avg_height = env.command_manager.get_term('target_pos_e').max_avg_height
+    #input("Input Enter")
+    #print('max_avg_height:',max_avg_height)
+    current_height = torch.mean(asset.data.body_pos_w[:, :, 2].clip(max=0.02), dim=1)
+    #print('current_height:',current_height)
+    downward=max_avg_height-current_height
+    success = torch.logical_and(asset.data.body_pos_w[:, :, 2].min(dim=1)[0] > 0.02, 
+                                asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0] > 1.6)
+    #print('downward:',downward)
+    penalty=torch.logical_or(downward>0 , downward.abs()<0.00001)
+    penalty=penalty.logical_and(~success)
+    
+    #print('penalty:',penalty)
+    env.command_manager.get_term('target_pos_e').update_max_avg_height(current_height)
+    return torch.where(penalty,torch.ones_like(downward),torch.zeros_like(downward))
+
+def com_backward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset = env.scene[asset_cfg.name]
+
+    max_com_x = env.command_manager.get_term('target_pos_e').max_com_x
+    #print('max com x:',max_com_x)
+    #compute body com X position relative to the env origin
+    body_coms = asset.data.body_pos_w[:, :, 0] - env.scene.env_origins[:, 0].unsqueeze(1) #shape: (num_envs, num_bodies)
+    masses= env.command_manager.get_term('target_pos_e').mass
+    #calculate center of mass of all bodies, which means the mean of body coms multiplied by the mass of each body
+    current_com_x = torch.sum(body_coms * masses, dim=1) / torch.sum(masses, dim=1)
+    #print('com:',current_com_x)
+    backward = max_com_x - current_com_x
+    success = torch.logical_and(asset.data.body_pos_w[:, :, 2].min(dim=1)[0] > 0.02, 
+                                asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0] > 1.6)
+    penalty = torch.logical_or(backward > 0, backward.abs() < 0.00001)
+    penalty = penalty.logical_and(~success)
+
+    env.command_manager.get_term('target_pos_e').update_max_com_x(current_com_x)
+
+    
+    
+   
+    return torch.where(penalty.logical_and(~success), torch.ones_like(backward), torch.zeros_like(backward))
 
 def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalty for waiting."""
     # extract the used quantities (to enable type-hinting)
     asset = env.scene[asset_cfg.name]
     norm_vel=asset.data.root_lin_vel_w.norm(dim=1)
-    pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
-                           +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
+    #print('norm vel:',norm_vel) 
+    current_height = torch.mean(asset.data.body_pos_w[:, :, 2].clip(max=0.), dim=1)
+    #print('current_height:',current_height)
+    # pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
+    #                        +env.scene.env_origins[:,:2]-asset.data.root_pos_w[:, :2], dim=1)
     #print('wait penalty:',torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
-    return torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),
-                       torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
+    # return torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),
+    #                    torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
+    #print('wait penalty:',torch.where(torch.logical_and(norm_vel<0.15, current_height<-0.01),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
+    return torch.where(torch.logical_and(norm_vel<0.15, current_height<-0.01),
+                          torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
 
 def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Reward moving in a specified direction."""
@@ -200,6 +247,7 @@ def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = Scene
     # print('move in direction reward:', torch.where(reward > 0, reward, 4*reward*vel.norm(dim=-1)))
     # print('vel norm:',vel.norm(dim=-1))
     # user_input = input("Input Enter")
+    #print('move in direction reward:', torch.where(reward > 0, reward, reward))
     return torch.where(reward > 0, reward, reward)  # Penalize negative reward sharply
     #return torch.where(condition,torch.zeros_like(raw_reward),raw_reward)
 
@@ -241,6 +289,7 @@ def base_lin_ang_vel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
 def base_lin_vel_clip(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     asset=env.scene[asset_cfg.name]
     norm_lin_vel=(torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)-1).clip(min=0)
+    
     #input("Input Enter")
     #print('base lin vel:',norm_lin_vel)
     return norm_lin_vel
@@ -379,9 +428,12 @@ def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, low
     root_pos=asset.data.root_pos_w[:, :]-env.scene.env_origins[:,:]
     #print('root height:',root_height)
     #activated = torch.logical_and(root_pos[:,2]> 0.55,contact_sensor.activated)
-    activated = torch.logical_and(contact_sensor.activated, root_pos[:,0]> 1.35)
+    #activated = torch.logical_and(contact_sensor.activated, root_pos[:,0]> 1.35)
+    activated = contact_sensor.activated
     air_time=torch.where(activated, air_time, torch.zeros_like(air_time))
     bodies_id_list=upper_sensor_cfg.body_ids + lower_sensor_cfg.body_ids
+    # print('contact activated:',contact_sensor.activated)
+    # print('root pos:',root_pos[:,0])
     # print('activated:',activated)
     # print('air time:', air_time)
     # print('root pos:',root_pos[:,0])
@@ -392,8 +444,8 @@ def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, low
     #print('air time:', air_time)
     #else:
     #print('bodies air time:', bodies_air_time)
-    bodies_air_time=contact_sensor.data.current_air_time[:, :]
-    idx_list= torch.nonzero(bodies_air_time[0] < 0.001).squeeze(-1).tolist()
+    # bodies_air_time=contact_sensor.data.current_air_time[:, :]
+    # idx_list= torch.nonzero(bodies_air_time[0] < 0.001).squeeze(-1).tolist()
     # lower_idx_list = torch.nonzero(lower_bodies_air_time[0] < 0.001).squeeze(-1).tolist()
     # upper_idx_list = torch.nonzero(upper_bodies_air_time[0] < 0.001).squeeze(-1).tolist()
     # #print('idx list:', idx_list)
