@@ -165,17 +165,22 @@ def position_tracking_cos(env, command_name: str,  start_time: float,asset_cfg: 
 def downward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     asset = env.scene[asset_cfg.name]
     max_avg_height = env.command_manager.get_term('target_pos_e').max_avg_height
-    #input("Input Enter")
-    #print('max_avg_height:',max_avg_height)
+    # input("Input Enter")
+    # print('max_avg_height:',max_avg_height)
     current_height = torch.mean(asset.data.body_pos_w[:, :, 2].clip(max=0.02), dim=1)
-    #print('current_height:',current_height)
+    # print('current_height:',current_height)
     downward=max_avg_height-current_height
     success = torch.logical_and(asset.data.body_pos_w[:, :, 2].min(dim=1)[0] > 0.02, 
                                 asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0] > 1.6)
     #print('downward:',downward)
-    penalty=torch.logical_or(downward>0 , downward.abs()<0.00001)
-    penalty=penalty.logical_and(~success)
     
+    #print('lowest height:',asset.data.body_pos_w[:, :, 2].min(dim=1)[0])
+    # print('root pos:',asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0])
+    penalty=torch.logical_or(downward>0 , downward.abs()<0.00001)
+    penalty=penalty.logical_and(current_height<0.02)
+    # print('penalty:',penalty)   
+    penalty=penalty.logical_and(~success)
+    # print('penalty after:',penalty)
     #print('penalty:',penalty)
     env.command_manager.get_term('target_pos_e').update_max_avg_height(current_height)
     return torch.where(penalty,torch.ones_like(downward),torch.zeros_like(downward))
@@ -193,16 +198,18 @@ def com_backward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"
     #print('com:',current_com_x)
     backward = max_com_x - current_com_x
     success = torch.logical_and(asset.data.body_pos_w[:, :, 2].min(dim=1)[0] > 0.02, 
-                                asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0] > 1.6)
-    penalty = torch.logical_or(backward > 0, backward.abs() < 0.00001)
-    penalty = penalty.logical_and(~success)
+                                asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0] > 1.9)
+    #penalty = torch.logical_or(backward > 0, backward.abs() < 0.00001)
+    penalty = torch.logical_and(backward > 0,~success)
+    # input("Input Enter")
+    # print('backward:',backward)
 
     env.command_manager.get_term('target_pos_e').update_max_com_x(current_com_x)
 
     
     
    
-    return torch.where(penalty.logical_and(~success), torch.ones_like(backward), torch.zeros_like(backward))
+    return torch.where(penalty, torch.ones_like(backward), torch.zeros_like(backward))
 
 def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalty for waiting."""
@@ -218,7 +225,7 @@ def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityC
     # return torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),
     #                    torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
     #print('wait penalty:',torch.where(torch.logical_and(norm_vel<0.15, current_height<-0.01),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
-    return torch.where(torch.logical_and(norm_vel<0.15, current_height<-0.01),
+    return torch.where(torch.logical_and(norm_vel<0.15, current_height<-0.2),
                           torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
 
 def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:

@@ -48,6 +48,12 @@ docker/artifacts/
 **/docs/_build/*
 **/generated/*
 
+/*.png
+/*.npy
+/*.pt
+**/*.png
+/
+
 # Isaac-Sim packman
 _isaac_sim*
 _repo
@@ -58,3 +64,4 @@ _build
 **/runs/*
 **/logs/*
 **/recordings/*
+**/*.ipynb
