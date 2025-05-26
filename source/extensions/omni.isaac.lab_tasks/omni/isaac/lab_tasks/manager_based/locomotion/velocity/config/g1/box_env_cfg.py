@@ -198,19 +198,19 @@ class ObservationsCfg:
         # base_lin_vel = ObsTerm(func=mdp.base_lin_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
         # base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
 
-        root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w, noise=Unoise(n_min=-0.01, n_max=0.01))
-        root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w, noise=Unoise(n_min=-0.01, n_max=0.01))
-        # projected_gravity = ObsTerm(
-        #     func=mdp.projected_gravity,
-        #     noise=Unoise(n_min=-0.05, n_max=0.05),
-        # )
-        base_quat = ObsTerm(func=mdp.root_quat_w, params={"make_quat_unique":True})
-        base_pos = ObsTerm(func=mdp.root_pos_w)
+        root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
+        root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
+        projected_gravity = ObsTerm(
+            func=mdp.projected_gravity,
+            noise=Unoise(n_min=-0.05, n_max=0.05),
+        )
+        #base_quat = ObsTerm(func=mdp.root_quat_w, params={"make_quat_unique":True})
+        base_pos = ObsTerm(func=mdp.root_pos_w, noise=Unoise(n_min=-0.01, n_max=0.01))
         #target_commands = ObsTerm(func=mdp.target_pos_root_frame, params={"command_name": "target_pos_e"})
         #target_commands = ObsTerm(func=mdp.target_pos_w, params={"command_name": "target_pos_e"})
         #velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
         joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.05, n_max=0.05))
+        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-1.5, n_max=1.5))
         actions = ObsTerm(func=mdp.last_processed_action,params={"action_name":"joint_pos"})
         box_height = ObsTerm(func=mdp.box_height, noise=Unoise(n_min=-0.01, n_max=0.01))
 
@@ -334,7 +334,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (0.7, 1.3)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
-            "pose_range": {"x": (1.3, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (0, 2*math.pi)},
+            "pose_range": {"x": (1.3, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (0, 0)},
             #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
