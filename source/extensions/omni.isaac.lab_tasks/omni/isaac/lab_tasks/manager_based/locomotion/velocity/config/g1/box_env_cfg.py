@@ -192,6 +192,7 @@ class ObservationsCfg:
  
     @configclass
     class PolicyCfg(ObsGroup):
+        #TODO: Always check the symmetry of the observation terms
         """Observations for policy group."""
 
         # observation terms (order preserved)

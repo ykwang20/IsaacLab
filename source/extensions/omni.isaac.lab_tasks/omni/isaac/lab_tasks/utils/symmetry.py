@@ -70,9 +70,13 @@ def mirror_xz_plane(observation):
     
     # Calculate dimensions of a single frame
     n_joints = 23
-    # Single frame components: root_lin_vel(3) + root_ang_vel(3) + base_quat(4) + base_pos(3) + 
-    # target_commands(3) + joint_pos(23) + joint_vel(23) + actions(23) + box_height(1) + time(1)
-    single_frame_dim = 3 + 3 + 4 + 3 + n_joints + n_joints + n_joints + 1 
+    # # Single frame components: root_lin_vel(3) + root_ang_vel(3) + base_quat(4) + base_pos(3) + 
+    # # joint_pos(23) + joint_vel(23) + actions(23) + box_height(1) 
+    # single_frame_dim = 3 + 3 + 4 + 3 + n_joints + n_joints + n_joints + 1 
+
+    # Single frame components: root_lin_vel(3) + root_ang_vel(3) + proj_grav(3) + base_pos(3) + 
+    # joint_pos(23) + joint_vel(23) + actions(23) + box_height(1) 
+    single_frame_dim = 3 + 3 + 3 + 3 + n_joints + n_joints + n_joints + 1 
     
     # Process each of the 6 frames
     for frame in range(6):
@@ -91,9 +95,13 @@ def mirror_xz_plane(observation):
         mirrored_obs[..., frame_start + pos + 2] = -mirrored_obs[..., frame_start + pos + 2]  # Flip z angular velocity
         pos += 3  # Move to next component
         
-        # base_quat - (w, x, y, z) order
-        mirrored_obs[..., frame_start + pos + 2] = -mirrored_obs[..., frame_start + pos + 2]  # Flip y component of quaternion
-        pos += 4  # Move to next component
+        # projected gravity - flip y component (second element)
+        mirrored_obs[..., frame_start + pos + 1] = -mirrored_obs[..., frame_start + pos + 1]  # Flip y component
+        pos += 3  # Move to next component
+
+        # # base_quat - (w, x, y, z) order
+        # mirrored_obs[..., frame_start + pos + 2] = -mirrored_obs[..., frame_start + pos + 2]  # Flip y component of quaternion
+        # pos += 4  # Move to next component
         
         # base_pos - keep unchanged as requested
         pos += 3  # Move to next component
