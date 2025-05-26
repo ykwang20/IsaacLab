@@ -198,7 +198,8 @@ def com_backward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"
     #print('com:',current_com_x)
     backward = max_com_x - current_com_x
     success = torch.logical_and(asset.data.body_pos_w[:, :, 2].min(dim=1)[0] > 0.02, 
-                                asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0] > 1.9)
+                                asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0] > 2)
+    #print('current root x:',asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0])
     #penalty = torch.logical_or(backward > 0, backward.abs() < 0.00001)
     penalty = torch.logical_and(backward > 0,~success)
     # input("Input Enter")

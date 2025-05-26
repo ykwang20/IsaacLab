@@ -56,7 +56,9 @@ class G1Rewards:
     #alive_reward=RewTerm(func=mdp.is_alive, weight=5)#100
     # air_penalty = RewTerm(func=mdp.body_air_time, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",
     #                                          body_names=[ ".*"]), "threshold": 1.0,})
-
+    # head_contact_penalty = RewTerm(func=mdp.contact_forces_exp, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",  body_names=["head_link"]), 
+    #                                   "threshold": 0,"grad_scale":0.1})
+    
     group_air_penalty = RewTerm(func=mdp.group_air_time, weight=-1,params={"upper_sensor_cfg": SceneEntityCfg("contact_forces_z",
                                                                             body_names=[ ".*wrist.*",".*elbow_link",]), 
                                                                             "lower_sensor_cfg": SceneEntityCfg("contact_forces_z",
@@ -202,7 +204,7 @@ class ObservationsCfg:
         #     func=mdp.projected_gravity,
         #     noise=Unoise(n_min=-0.05, n_max=0.05),
         # )
-        base_quat = ObsTerm(func=mdp.root_quat_w)
+        base_quat = ObsTerm(func=mdp.root_quat_w, params={"make_quat_unique":True})
         base_pos = ObsTerm(func=mdp.root_pos_w)
         #target_commands = ObsTerm(func=mdp.target_pos_root_frame, params={"command_name": "target_pos_e"})
         #target_commands = ObsTerm(func=mdp.target_pos_w, params={"command_name": "target_pos_e"})
@@ -332,7 +334,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (0.7, 1.3)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
-            "pose_range": {"x": (1.3, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (0, 0)},
+            "pose_range": {"x": (1.3, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (0, 2*math.pi)},
             #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
