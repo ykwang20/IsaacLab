@@ -10,6 +10,7 @@ from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.managers import ObservationGroupCfg as ObsGroup
 from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+from omni.isaac.lab.utils.noise import UniformEulerNoiseOnQuatCfg as EulerNoise
 from omni.isaac.lab.managers import CurriculumTermCfg as CurrTerm
 from omni.isaac.lab.sensors import  patterns
 
@@ -51,7 +52,7 @@ class G1Rewards:
     
     # contact_exp_penalty=RewTerm(func=mdp.contact_forces_exp, weight=-0.1,
     #                         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"]), 
-    #                                  "threshold": 500.0,"grad_scale":0.0025})
+    #                                  "threshold": 400.0,"grad_scale":0.0025})
     #                                 #"threshold": 500.0,"grad_scale":0.01})
     #alive_reward=RewTerm(func=mdp.is_alive, weight=5)#100
     # air_penalty = RewTerm(func=mdp.body_air_time, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",
@@ -201,11 +202,13 @@ class ObservationsCfg:
 
         root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
         root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
-        projected_gravity = ObsTerm(
-            func=mdp.projected_gravity,
-            noise=Unoise(n_min=-0.05, n_max=0.05),
-        )
-        #base_quat = ObsTerm(func=mdp.root_quat_w, params={"make_quat_unique":True})
+        # projected_gravity = ObsTerm(
+        #     func=mdp.projected_gravity,
+        #     noise=Unoise(n_min=-0.05, n_max=0.05),
+        # )
+        #base_yaw = ObsTerm(func=mdp.base_yaw_w, noise=Unoise(n_min=-0.05, n_max=0.05))
+        base_quat = ObsTerm(func=mdp.root_quat_w, params={"make_quat_unique":True},
+                            noise=EulerNoise(n_min=[-0.05,-0.05,-0.05], n_max=[0.05,0.05,0.05]))
         base_pos = ObsTerm(func=mdp.root_pos_w, noise=Unoise(n_min=-0.01, n_max=0.01))
         #target_commands = ObsTerm(func=mdp.target_pos_root_frame, params={"command_name": "target_pos_e"})
         #target_commands = ObsTerm(func=mdp.target_pos_w, params={"command_name": "target_pos_e"})
@@ -330,12 +333,31 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         super().__post_init__()
         self.episode_length_s =5#10#20
         # Randomization
-        self.events.push_robot = None
-        self.events.add_base_mass = None
+
+        self.events.push_robot.interval_range_s=(1.,3.) #= None
+        self.events.push_robot.params={"velocity_range": {"x": (-1.5, 1.5), "y": (-1.5, 1.5)}}
+        self.events.add_base_mass.params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+            "mass_distribution_params": (-1.0, 3.0),
+            "operation": "add",
+        }
+        self.events.physics_material.params = {
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+            "static_friction_range": (0.1, 1.25),
+            "dynamic_friction_range": (0.1, 1.25),
+            "make_consistent": True,
+            "restitution_range": (0.0, 0.0),
+            "num_buckets": 64,
+        }
+
+        # self.events.push_robot= None
+        # self.events.add_base_mass= None
+
+
         self.events.reset_robot_joints.params["position_range"] = (0.7, 1.3)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
-            "pose_range": {"x": (1.3, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (0, 0)},
+            "pose_range": {"x": (1.25, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (-math.pi/4, math.pi/4)},#"yaw": (math.pi, math.pi)},
             #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -379,8 +401,8 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
         # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         # self.commands.base_velocity.ranges.heading = (0.0, 0.0)
         # # disable randomization for play
-        self.observations.policy.enable_corruption = False
+        self.observations.policy.enable_corruption = True#False
         # remove random pushing
-        self.events.base_external_force_torque = None
-        self.events.push_robot = None
+        self.events.base_external_force_torque #= None
+        #self.events.push_robot = None
         #self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)

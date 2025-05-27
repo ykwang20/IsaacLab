@@ -88,7 +88,20 @@ def root_quat_w(
 
     quat = asset.data.root_link_quat_w
     # make the quaternion real-part positive if configured
+
     return math_utils.quat_unique(quat) if make_quat_unique else quat
+
+
+def base_yaw_w(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Yaw and roll of the base in the simulation world frame."""
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    # extract euler angles (in world frame)
+    _, _, yaw = math_utils.euler_xyz_from_quat(asset.data.root_link_quat_w)
+    # normalize angle to [-pi, pi]
+    yaw = torch.atan2(torch.sin(yaw), torch.cos(yaw))
+
+    return yaw.unsqueeze(-1)
 
 def root_euler_w(env: ManagerBasedEnv, make_quat_unique: bool = True, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:

@@ -8,7 +8,7 @@ from __future__ import annotations
 import torch
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
-
+from omni.isaac.lab.utils.math import quat_from_euler_xyz, quat_mul, quat_unique
 if TYPE_CHECKING:
     from . import noise_cfg
 
@@ -42,6 +42,25 @@ def constant_noise(data: torch.Tensor, cfg: noise_cfg.ConstantNoiseCfg) -> torch
         raise ValueError(f"Unknown operation in noise: {cfg.operation}")
 
 
+def uniform_euler_noise_on_quat(data: torch.Tensor, cfg: noise_cfg.UniformEulerNoiseOnQuatCfg) -> torch.Tensor:
+    """Applies a uniform noise to a given data set.
+
+    Args:
+        data: The unmodified data set to apply noise to.
+        cfg: The configuration parameters for uniform noise.
+
+    Returns:
+        The data modified by the noise parameters provided.
+    """
+    euler_angle_min =  torch.tensor(cfg.n_min, device=data.device)
+    euler_angle_max = torch.tensor(cfg.n_max, device=data.device)
+    
+    delta_euler_xyz = torch.rand(size=(data.shape[0], 3), device=data.device) * (euler_angle_max - euler_angle_min) + euler_angle_min
+    delta_quat = quat_from_euler_xyz(delta_euler_xyz[:, 0], delta_euler_xyz[:, 1], delta_euler_xyz[:, 2])
+    noisy_quat=quat_mul(data, delta_quat)
+    return quat_unique(noisy_quat)
+
+    
 def uniform_noise(data: torch.Tensor, cfg: noise_cfg.UniformNoiseCfg) -> torch.Tensor:
     """Applies a uniform noise to a given data set.
 

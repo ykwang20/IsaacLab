@@ -8,7 +8,7 @@ from __future__ import annotations
 import torch
 from collections.abc import Callable
 from dataclasses import MISSING
-from typing import Literal
+from typing import Literal, Union, List
 
 from omni.isaac.lab.utils import configclass
 
@@ -62,6 +62,17 @@ class GaussianNoiseCfg(NoiseCfg):
     std: torch.Tensor | float = 1.0
     """The standard deviation of the noise. Defaults to 1.0."""
 
+
+@configclass
+class UniformEulerNoiseOnQuatCfg(NoiseCfg):
+    """Configuration for a additive uniform noise term."""
+
+    func = noise_model.uniform_euler_noise_on_quat
+
+    n_min: Union[List[float], float] = [-0.01, -0.01, -0.01]
+    """The minimum value of the noise. Defaults to -1.0."""
+    n_max: Union[List[float], float] = [0.01, 0.01, 0.01]
+    """The maximum value of the noise. Defaults to 1.0."""
 
 ##
 # Noise models
