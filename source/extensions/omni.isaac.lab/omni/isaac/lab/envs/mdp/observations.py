@@ -67,6 +67,7 @@ def root_pos_w(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg(
     """Asset root position in the environment frame."""
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject = env.scene[asset_cfg.name]
+
     return asset.data.root_link_pos_w - env.scene.env_origins
 
 def root_pos_target(env: ManagerBasedEnv, command_name:str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -285,6 +286,22 @@ def imu_lin_acc(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg
 
 def box_height(env: ManagerBasedEnv) -> torch.Tensor:
     return (0-env.scene.env_origins[:, 2]).unsqueeze(-1)
+
+def body_mass(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Mass of the body links of an articulation in the simulation world frame.
+
+    Args:
+        env: The environment.
+        asset_cfg: The SceneEntity associated with an Articulation. Defaults to SceneEntityCfg("robot").
+
+    Returns:
+        Mass of the body links in kg. Shape is (num_envs, num_bodies).
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    masses = asset.root_physx_view.get_masses()
+
+    return masses[:, asset_cfg.body_ids]
 
 def time(env: ManagerBasedEnv) -> torch.Tensor:
     if hasattr(env, "episode_length_buf"):

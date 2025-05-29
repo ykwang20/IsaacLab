@@ -60,9 +60,9 @@ class G1Rewards:
     # head_contact_penalty = RewTerm(func=mdp.contact_forces_exp, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",  body_names=["head_link"]), 
     #                                   "threshold": 0,"grad_scale":0.1})
     
-    group_air_penalty = RewTerm(func=mdp.group_air_time, weight=-1,params={"upper_sensor_cfg": SceneEntityCfg("contact_forces_z",
+    group_air_penalty = RewTerm(func=mdp.group_air_time, weight=-1,params={"upper_sensor_cfg": SceneEntityCfg("bodies_ground_contact",
                                                                             body_names=[ ".*wrist.*",".*elbow_link",]), 
-                                                                            "lower_sensor_cfg": SceneEntityCfg("contact_forces_z",
+                                                                            "lower_sensor_cfg": SceneEntityCfg("bodies_ground_contact",
                                                                             body_names=[ ".*_hip_yaw_link",".*_knee_link",".*_ankle_roll_link"]),
                                                                             "threshold": 1.0,})
     # knee_air_time_penalty = RewTerm(func=mdp.knee_air_time, weight=-1,params={
@@ -71,7 +71,7 @@ class G1Rewards:
     #                                          body_names=[ ".*_hip_yaw_link",".*_knee_link",]),
     #                                          "feet_sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_ankle_roll_link"]),
     #                                           "torso_bodies_sensor_cfg": SceneEntityCfg("torso_bodies_contact",
-    #                                          body_names=[ "torso_link"]),
+    #                                          body_names=[ ".*",]),
     #                                          "threshold": 1.0,})
     #this leads to quick motion
     #knee_height_reward = RewTerm(func=mdp.knee_height, weight=1) 
@@ -217,6 +217,7 @@ class ObservationsCfg:
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-1.5, n_max=1.5))
         actions = ObsTerm(func=mdp.last_processed_action,params={"action_name":"joint_pos"})
         box_height = ObsTerm(func=mdp.box_height, noise=Unoise(n_min=-0.01, n_max=0.01))
+        #trunk_mass = ObsTerm(func=mdp.body_mass, params={"asset_cfg": SceneEntityCfg("robot", body_names=["torso_link"])})
 
         #time = ObsTerm(func=mdp.time)
         # height_scan = ObsTerm(
@@ -316,17 +317,20 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         # Scene
         #self.curiosity=True
         self.scene.robot = G1_29_ANNEAL_23_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot.spawn.articulation_props.enabled_self_collisions = True#False
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         #self.scene.contact_forces.history_length = 16
         # TODO: always check this
-        self.scene.torso_bodies_contact.filter_prim_paths_expr = ["{ENV_REGEX_NS}/Robot/left_elbow_link",
-                                                                  "{ENV_REGEX_NS}/Robot/right_elbow_link",
-                                                                    "{ENV_REGEX_NS}/Robot/left_wrist_yaw_link",
-                                                                    "{ENV_REGEX_NS}/Robot/right_wrist_yaw_link",
-                                                                    "{ENV_REGEX_NS}/Robot/left_wrist_pitch_link",
-                                                                    "{ENV_REGEX_NS}/Robot/right_wrist_pitch_link",
-                                                                    "{ENV_REGEX_NS}/Robot/left_wrist_roll_link",
-                                                                    "{ENV_REGEX_NS}/Robot/right_wrist_roll_link",]
+        # self.scene.torso_bodies_contact.filter_prim_paths_expr = ["{ENV_REGEX_NS}/Robot/left_elbow_link",
+        #                                                           "{ENV_REGEX_NS}/Robot/right_elbow_link",
+        #                                                             "{ENV_REGEX_NS}/Robot/left_wrist_yaw_link",
+        #                                                             "{ENV_REGEX_NS}/Robot/right_wrist_yaw_link",
+        #                                                             "{ENV_REGEX_NS}/Robot/left_wrist_pitch_link",
+        #                                                             "{ENV_REGEX_NS}/Robot/right_wrist_pitch_link",
+        #                                                             "{ENV_REGEX_NS}/Robot/left_wrist_roll_link",
+        #                                                             "{ENV_REGEX_NS}/Robot/right_wrist_roll_link",]
+        
+
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
         #self.scene.height_scanner.pattern_cfg=patterns.GridPatternCfg(resolution=0.2, size=[1.6, 1.0])
        
@@ -337,11 +341,11 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         # self.events.push_robot.interval_range_s=(1.,3.) #= None
         # self.events.push_robot.params={"velocity_range": {"x": (-1., 1.), "y": (-1., 1.)}}
 
-        self.events.add_base_mass.params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
-            "mass_distribution_params": (-1.0, 3.0),
-            "operation": "add",
-        }
+        # self.events.add_base_mass.params={
+        #     "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+        #     "mass_distribution_params": (-1.0, 3.0),
+        #     "operation": "add",
+        # }
 
         # self.events.physics_material.params = {
         #     "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
@@ -353,7 +357,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         # }
 
         self.events.push_robot= None
-        #self.events.add_base_mass= None
+        self.events.add_base_mass= None
 
 
         self.events.reset_robot_joints.params["position_range"] = (0.7, 1.3)
@@ -403,7 +407,7 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
         # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         # self.commands.base_velocity.ranges.heading = (0.0, 0.0)
         # # disable randomization for play
-        self.observations.policy.enable_corruption =True# False
+        self.observations.policy.enable_corruption = False
         # remove random pushing
         self.events.base_external_force_torque #= None
 
