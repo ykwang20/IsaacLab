@@ -71,7 +71,7 @@ class G1Rewards:
     #                                          body_names=[ ".*_hip_yaw_link",".*_knee_link",]),
     #                                          "feet_sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_ankle_roll_link"]),
     #                                           "torso_bodies_sensor_cfg": SceneEntityCfg("torso_bodies_contact",
-    #                                          body_names=[ ".*",]),
+    #                                          body_names=[ "torso_link"]),
     #                                          "threshold": 1.0,})
     #this leads to quick motion
     #knee_height_reward = RewTerm(func=mdp.knee_height, weight=1) 
@@ -91,7 +91,7 @@ class G1Rewards:
     #torque_lim_penalty=RewTerm(func=mdp.applied_torque_limits, weight=-0.002,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     joint_acc_penalty=RewTerm(func=mdp.joint_acc_l2, weight=-2e-8,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     base_acc_penalty=RewTerm(func=mdp.base_lin_ang_acc, weight=-0.0001)
-    feet_acc_penalty=RewTerm(func=mdp.feet_acc, weight=-0.00002)
+    #feet_acc_penalty=RewTerm(func=mdp.feet_acc, weight=-0.00002)
     rigid_body_acc_penalty=RewTerm(func=mdp.body_lin_acc_l2, weight=-0.0002,params={"asset_cfg" :SceneEntityCfg("robot", 
                                             body_names=[".*"])})
     
@@ -230,7 +230,7 @@ class ObservationsCfg:
 
 
         def __post_init__(self):
-            self.enable_corruption =False# True
+            self.enable_corruption = True
             self.concatenate_terms = True
             self.history_length = 6
 
@@ -317,25 +317,16 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         # Scene
         #self.curiosity=True
         self.scene.robot = G1_29_ANNEAL_23_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene.robot.spawn.articulation_props.enabled_self_collisions = True#False
+        self.scene.robot.spawn.articulation_props.enabled_self_collisions =True# False
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         #self.scene.contact_forces.history_length = 16
         # TODO: always check this
-        # self.scene.torso_bodies_contact.filter_prim_paths_expr = ["{ENV_REGEX_NS}/Robot/left_elbow_link",
-        #                                                           "{ENV_REGEX_NS}/Robot/right_elbow_link",
-        #                                                             "{ENV_REGEX_NS}/Robot/left_wrist_yaw_link",
-        #                                                             "{ENV_REGEX_NS}/Robot/right_wrist_yaw_link",
-        #                                                             "{ENV_REGEX_NS}/Robot/left_wrist_pitch_link",
-        #                                                             "{ENV_REGEX_NS}/Robot/right_wrist_pitch_link",
-        #                                                             "{ENV_REGEX_NS}/Robot/left_wrist_roll_link",
-        #                                                             "{ENV_REGEX_NS}/Robot/right_wrist_roll_link",]
-        
-
+       
         self.scene.terrain.terrain_generator = BOX_AND_PIT_CFG
         #self.scene.height_scanner.pattern_cfg=patterns.GridPatternCfg(resolution=0.2, size=[1.6, 1.0])
        
         super().__post_init__()
-        self.episode_length_s =5#10#20
+        self.episode_length_s =6#10#20
         # Randomization
 
         # self.events.push_robot.interval_range_s=(1.,3.) #= None
@@ -363,7 +354,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (0.7, 1.3)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
-            "pose_range": {"x": (1.25, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (0, 0)},#"yaw": (math.pi, math.pi)},
+            "pose_range": {"x": (1.25, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (0, 0)},#"yaw": (-math.pi/6, math.pi/6)},#"yaw": (math.pi, math.pi)},
             #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -393,7 +384,7 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
         # make a smaller scene for play
         self.scene.num_envs = 10
         self.scene.env_spacing = 2.5
-        self.episode_length_s =5#10.0
+        self.episode_length_s =10.0
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
         # reduce the number of terrains to save memory
