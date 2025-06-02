@@ -107,7 +107,7 @@ class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         # }
          # -- Symmetry Augmentation
         symmetry_cfg={
-            "use_data_augmentation":True,#True,#False,# True,  # this adds symmetric trajectories to the batch
+            "use_data_augmentation": False,#True,  # this adds symmetric trajectories to the batch
             "use_mirror_loss": False,  # this adds symmetry loss term to the loss function
 
             # string containing the module and function name to import.

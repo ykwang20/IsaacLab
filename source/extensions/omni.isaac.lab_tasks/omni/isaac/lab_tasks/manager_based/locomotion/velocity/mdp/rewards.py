@@ -168,7 +168,7 @@ def downward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -
     # input("Input Enter")
     # print('max_avg_height:',max_avg_height)
     current_height = torch.mean(asset.data.body_pos_w[:, :, 2].clip(max=0.02), dim=1)
-    # print('current_height:',current_height)
+    #print('current_height:',current_height)
     downward=max_avg_height-current_height
     success = torch.logical_and(asset.data.body_pos_w[:, :, 2].min(dim=1)[0] > 0.02, 
                                 asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0] > 1.6)

@@ -315,9 +315,16 @@ def contact_forces_exp(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: Sce
     # compute the violation
     #threshold = 0
     max_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0]
-    max_contact = torch.max(max_contact,dim=1)[0]
-    #print("MAX CONTACT: ", max_contact)
-    rew=torch.exp(grad_scale*(max_contact-threshold).clip(min=0.0))-1
+    max_contact_force = torch.max(max_contact,dim=1)[0]
+    
+    max_contact_id = torch.max(max_contact,dim=1)[1]
+    body_names = contact_sensor.body_names
+    # if max_contact_force >500:
+    #     print("MAX CONTACT force: ", max_contact_force)
+    #     print('max contact body:', body_names[max_contact_id])
+    # print('body names:', body_names)
+    # print('body ids:', sensor_cfg.body_ids)
+    rew=torch.exp(grad_scale*(max_contact_force-threshold).clip(min=0.0))-1
     #print("VIOLATION: ", rew)
     return rew.clip(max=200)
     
@@ -332,6 +339,25 @@ def contact_forces(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEn
     # compute the penalty
     #print("VIOLATION: ", violation.clip(min=0.0))
     return torch.sum(violation.clip(min=0.0), dim=1)
+
+
+def body_dragging(env: ManagerBasedRLEnv, vel_threshold: float , sensor_cfg: SceneEntityCfg, asset_cfg:SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize rigid bodies that are in contact whose velocity is over a threshold."""
+
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    asset: RigidObject = env.scene[asset_cfg.name]
+    # compute the contact forces
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    # check if contact force is above threshold
+    is_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > 1.
+    # compute the dragging condition
+    dragging_condition = torch.norm(asset.data.body_lin_vel_w[:,:,:2], dim=-1) > vel_threshold
+    # input("Input Enter")
+    # print("dragging condition: ", dragging_condition& is_contact)
+    # print('dragging penalty: ', torch.sum(is_contact & dragging_condition, dim=1))
+    return torch.sum(is_contact & dragging_condition, dim=1)
+
 
 
 

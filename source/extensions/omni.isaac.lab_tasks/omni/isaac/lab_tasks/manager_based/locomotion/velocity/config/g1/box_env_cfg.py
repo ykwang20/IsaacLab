@@ -36,8 +36,8 @@ class G1Rewards:
     """Reward terms for the MDP."""
     #TODO: add termination penalty and replace alive reward
     # -- task
-    # position_tracking = RewTerm(func=mdp.position_tracking, weight=4.,
-    #                               params={"command_name": "target_pos_e","start_time": 0})
+    #position_tracking = RewTerm(func=mdp.position_tracking, weight=4.,
+    #                              params={"command_name": "target_pos_e","start_time": 0})
     # position_tracking_cos = RewTerm(func=mdp.position_tracking_cos, weight=20.,
     #                               params={"command_name": "target_pos_e","start_time": 1})
     downward_penalty = RewTerm(func=mdp.downward_penalty, weight=-4)
@@ -50,16 +50,14 @@ class G1Rewards:
 
 
     
-    # contact_exp_penalty=RewTerm(func=mdp.contact_forces_exp, weight=-0.1,
-    #                         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"]), 
-    #                                  "threshold": 400.0,"grad_scale":0.0025})
-    #                                 #"threshold": 500.0,"grad_scale":0.01})
-    #alive_reward=RewTerm(func=mdp.is_alive, weight=5)#100
+    contact_exp_penalty=RewTerm(func=mdp.contact_forces_exp, weight=-1,
+                            params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"]), 
+                                     "threshold": 1000.0,"grad_scale":0.01})
+                                    #"threshold": 500.0,"grad_scale":0.01})
     # air_penalty = RewTerm(func=mdp.body_air_time, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",
     #                                          body_names=[ ".*"]), "threshold": 1.0,})
     # head_contact_penalty = RewTerm(func=mdp.contact_forces_exp, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",  body_names=["head_link"]), 
     #                                   "threshold": 0,"grad_scale":0.1})
-    
     group_air_penalty = RewTerm(func=mdp.group_air_time, weight=-1,params={"upper_sensor_cfg": SceneEntityCfg("bodies_ground_contact",
                                                                             body_names=[ ".*wrist.*",".*elbow_link",]), 
                                                                             "lower_sensor_cfg": SceneEntityCfg("bodies_ground_contact",
@@ -76,42 +74,39 @@ class G1Rewards:
     #this leads to quick motion
     #knee_height_reward = RewTerm(func=mdp.knee_height, weight=1) 
 
+    body_drag_penalty = RewTerm(func=mdp.body_dragging, weight=-1,params={"vel_threshold": 0.1 ,"asset_cfg" :SceneEntityCfg("robot", body_names=[".*"]),
+                                                                           "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"])})
 
 
+    action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.0002,params={"action_name":"joint_pos"})
+    #action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.002,params={"action_name":"joint_pos"})
 
-
+    # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#-0.005,
+    #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-1,)
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
-
     #joint_vel_clip_penalty=RewTerm(func=mdp.joint_vel_clip, weight=-1,params={"threshold": 3, "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     joint_vel_exp_penalty=RewTerm(func=mdp.joint_vel_exp, weight=-1,params={"grad_scale": 1,"threshold": 10, "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
+    joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-1, params={"soft_ratio": 0.9, "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    joint_acc_penalty=RewTerm(func=mdp.joint_acc_l2, weight=-2e-8,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    #joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-0.1, params={"soft_ratio": 1., "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
 
     torque_penalty=RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-5,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-    #joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-0.1, params={"soft_ratio": 1., "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-    joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-1, params={"soft_ratio": 0.9, "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     #torque_lim_penalty=RewTerm(func=mdp.applied_torque_limits, weight=-0.002,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
-    joint_acc_penalty=RewTerm(func=mdp.joint_acc_l2, weight=-2e-8,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+
+    power_penalty=RewTerm(func=mdp.power_consumption, weight=-0.00001)
+
+
+    #base_vel_penalty=RewTerm(func=mdp.base_lin_vel_clip, weight=-5)
+    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.005)    
     base_acc_penalty=RewTerm(func=mdp.base_lin_ang_acc, weight=-0.0001)
     #feet_acc_penalty=RewTerm(func=mdp.feet_acc, weight=-0.00002)
     rigid_body_acc_penalty=RewTerm(func=mdp.body_lin_acc_l2, weight=-0.0002,params={"asset_cfg" :SceneEntityCfg("robot", 
                                             body_names=[".*"])})
-    
-    
-    #TODO: base vel
-    #base_vel_penalty=RewTerm(func=mdp.base_lin_vel_clip, weight=-5)
-    power_penalty=RewTerm(func=mdp.power_consumption, weight=-0.00001)
-    action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.0002,params={"action_name":"joint_pos"})
-    #action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.002,params={"action_name":"joint_pos"})
 
    
-    # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#-0.005,
-    #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
-   
-   
-    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.005)
     #curiosity_rnd = RewTerm(func=mdp.curiosity, weight=200)
     #curiosity_cnt = RewTerm(func=mdp.curiosity_cnt, weight=2000)
-    #joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-0.1,)\
-    joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-1,)
 
 
 
@@ -332,29 +327,29 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         # self.events.push_robot.interval_range_s=(1.,3.) #= None
         # self.events.push_robot.params={"velocity_range": {"x": (-1., 1.), "y": (-1., 1.)}}
 
-        # self.events.add_base_mass.params={
-        #     "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
-        #     "mass_distribution_params": (-1.0, 3.0),
-        #     "operation": "add",
-        # }
+        self.events.add_base_mass.params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+            "mass_distribution_params": (-1.0, 3.0),
+            "operation": "add",
+        }
 
-        # self.events.physics_material.params = {
-        #     "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
-        #     "static_friction_range": (0.3, 1.0),
-        #     "dynamic_friction_range": (1.25, 1.25),
-        #     "make_consistent": True,
-        #     "restitution_range": (0.0, 0.0),
-        #     "num_buckets": 64,
-        # }
+        self.events.physics_material.params = {
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+            "static_friction_range": (0.3, 1.0),
+            "dynamic_friction_range": (1.25, 1.25),
+            "make_consistent": True,
+            "restitution_range": (0.0, 0.0),
+            "num_buckets": 64,
+        }
 
         self.events.push_robot= None
-        self.events.add_base_mass= None
+        #self.events.add_base_mass= None
 
 
         self.events.reset_robot_joints.params["position_range"] = (0.7, 1.3)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
-            "pose_range": {"x": (1.25, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (0, 0)},#"yaw": (-math.pi/6, math.pi/6)},#"yaw": (math.pi, math.pi)},
+            "pose_range": {"x": (1.25, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (-math.pi/6, math.pi/6)},#"yaw": (math.pi, math.pi)},
             #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
