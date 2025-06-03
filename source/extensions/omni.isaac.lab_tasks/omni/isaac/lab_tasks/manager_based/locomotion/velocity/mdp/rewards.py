@@ -217,7 +217,8 @@ def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityC
     # extract the used quantities (to enable type-hinting)
     asset = env.scene[asset_cfg.name]
     norm_vel=asset.data.root_lin_vel_w.norm(dim=1)
-    #print('norm vel:',norm_vel) 
+    # input("Input Enter")
+    # print('norm vel:',norm_vel) 
     current_height = torch.mean(asset.data.body_pos_w[:, :, 2].clip(max=0.), dim=1)
     #print('current_height:',current_height)
     # pos_error = torch.norm(env.command_manager.get_command(command_name)[:, :2]
@@ -226,7 +227,7 @@ def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityC
     # return torch.where(torch.logical_and(norm_vel<0.15, pos_error>0.2),
     #                    torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
     #print('wait penalty:',torch.where(torch.logical_and(norm_vel<0.15, current_height<-0.01),torch.ones_like(norm_vel),torch.zeros_like(norm_vel)))
-    return torch.where(torch.logical_and(norm_vel<0.15, current_height<-0.2),
+    return torch.where(torch.logical_and(norm_vel<0.15, current_height<-0.01),
                           torch.ones_like(norm_vel),torch.zeros_like(norm_vel))
 
 def move_in_direction(env, command_name: str,  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:

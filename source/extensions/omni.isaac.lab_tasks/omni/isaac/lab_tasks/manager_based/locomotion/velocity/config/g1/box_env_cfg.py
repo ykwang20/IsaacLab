@@ -42,7 +42,7 @@ class G1Rewards:
     #                               params={"command_name": "target_pos_e","start_time": 1})
     downward_penalty = RewTerm(func=mdp.downward_penalty, weight=-4)
     backward_penalty = RewTerm(func=mdp.com_backward_penalty, weight=-2)
-    alive_reward=RewTerm(func=mdp.is_alive, weight=10)
+    alive_reward=RewTerm(func=mdp.is_alive, weight=11)
     wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-1,params={"command_name": "target_pos_e"}) #weight=-2
     #move_in_direction = RewTerm(func=mdp.move_in_direction, weight=5.0,params={"command_name": "target_pos_e"})
     #move_in_direction = RewTerm(func=mdp.move_in_direction, weight=1.0,params={"command_name": "target_pos_e"})
@@ -74,10 +74,10 @@ class G1Rewards:
     #this leads to quick motion
     #knee_height_reward = RewTerm(func=mdp.knee_height, weight=1) 
 
-    body_drag_penalty = RewTerm(func=mdp.body_dragging, weight=-1,params={"vel_threshold": 0.1 ,"asset_cfg" :SceneEntityCfg("robot", body_names=[".*"]),
-                                                                           "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"])})
-
-
+    # body_drag_penalty = RewTerm(func=mdp.body_dragging, weight=-1,params={"vel_threshold": 0.1 ,"asset_cfg" :SceneEntityCfg("robot", body_names=[".*"]),
+    #                                                                        "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"])})
+    body_slipping_penalty = RewTerm(func=mdp.body_slipping, weight=-0.1,params={"asset_cfg" :SceneEntityCfg("robot", body_names=[".*"]),
+                                                                                "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"])})
     action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.0002,params={"action_name":"joint_pos"})
     #action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.002,params={"action_name":"joint_pos"})
 
@@ -379,7 +379,7 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
         # make a smaller scene for play
         self.scene.num_envs = 10
         self.scene.env_spacing = 2.5
-        self.episode_length_s =10.0
+        self.episode_length_s =6#10.0
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
         # reduce the number of terrains to save memory

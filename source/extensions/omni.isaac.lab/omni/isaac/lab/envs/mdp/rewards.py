@@ -358,6 +358,24 @@ def body_dragging(env: ManagerBasedRLEnv, vel_threshold: float , sensor_cfg: Sce
     # print('dragging penalty: ', torch.sum(is_contact & dragging_condition, dim=1))
     return torch.sum(is_contact & dragging_condition, dim=1)
 
+def body_slipping(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, asset_cfg:SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize rigid bodies that are in contact whose velocity is over a threshold."""
+
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    asset: RigidObject = env.scene[asset_cfg.name]
+    # compute the contact forces
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    # check if contact force is above threshold
+    is_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > 1.
+    # compute the dragging condition
+    vel_norm = torch.norm(asset.data.body_lin_vel_w[:,:,:2], dim=-1) 
+    penalty = torch.where(is_contact, vel_norm, torch.zeros_like(vel_norm))
+    # input("Input Enter")
+    # print("slippig penalty: ", penalty)
+    # print('slippig penalty sum: ', torch.sum(penalty, dim=1))
+    return torch.sum(penalty, dim=1)
+
 
 
 
