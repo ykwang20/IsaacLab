@@ -126,6 +126,8 @@ def base_height_l2(
 def body_lin_acc_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize the linear acceleration of bodies using L2-kernel."""
     asset: Articulation = env.scene[asset_cfg.name]
+    # print('body accs:', torch.norm(asset.data.body_lin_acc_w[:, asset_cfg.body_ids, :], dim=-1))
+    # print('body vels:',torch.norm(asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :], dim=-1))
     return torch.sum(torch.norm(asset.data.body_lin_acc_w[:, asset_cfg.body_ids, :], dim=-1), dim=1)
 
 
@@ -205,6 +207,14 @@ def joint_deviation_l1(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = Scene
     angle = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
     return torch.sum(torch.abs(angle), dim=1)
 
+def joint_deviation_exp(env: ManagerBasedRLEnv, scale: float, threshold: float,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+
+    asset: Articulation = env.scene[asset_cfg.name]
+    # compute out of limits constraints
+    angle = (torch.abs(asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids])-threshold).clip(min=0.0)
+    #print("joint deviation: ", torch.exp(angle)-1)
+    rew = torch.exp(scale*angle)-1
+    return torch.sum(rew, dim=1)
 
 def joint_pos_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint positions if they cross the soft limits.

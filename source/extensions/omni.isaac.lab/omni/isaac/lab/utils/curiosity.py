@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, List
-from termcolor import colored
+# from termcolor import colored
 import math
 
 class myNN(nn.Module):
@@ -159,7 +159,7 @@ class DualDiscreteCuriosity:
     def init_buffer(self, ):
         self.curiosity_items = [attr for attr in dir(self.cfg.curiosity) if not attr.startswith('__')]
         assert len(self.curiosity_items) % 2 == 0
-        print(colored(f"curiosity_items - {self.curiosity_items}", "yellow"))
+        # print(colored(f"curiosity_items - {self.curiosity_items}", "yellow"))
         
         for i in range(0, len(self.curiosity_items), 2):
             xbinset = getattr(self.cfg.curiosity, self.curiosity_items[i])

@@ -794,7 +794,163 @@ G1_29_ANNEAL_23_MODIFIED_CFG.spawn.usd_path = "source/asset/g1/g1_29dof_anneal_2
 
 G1_29_MINIMAL_CFG = G1_29_CFG.copy()
 G1_29_MINIMAL_CFG.spawn.usd_path = "source/asset/g1/g1_29dof_feetmod_minimal.usd"
-G1_29_MODIFIED_CFG = G1_29_CFG.copy()
+#G1_29_MODIFIED_CFG = G1_29_CFG.copy()
 # TODO: change usd
 #G1_29_MODIFIED_CFG.spawn.usd_path = "/home/legrobot/IsaacLab/source/asset/g1/g1_29dof_modified.usd"
-G1_29_MODIFIED_CFG.spawn.usd_path = "source/asset/g1/g1_29dof_modified.usd"
+
+G1_29_MODIFIED_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path="source/asset/g1/g1_29dof_modified_new.usd",
+        activate_contact_sensors=True,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            retain_accelerations=False,
+            linear_damping=0.0,
+            angular_damping=0.0,
+            max_linear_velocity=1000.0,
+            max_angular_velocity=1000.0,
+            max_depenetration_velocity=1.0,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=True, solver_position_iteration_count=8, solver_velocity_iteration_count=4
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.74),
+        joint_pos={
+            ".*_hip_pitch_joint": -0.20,
+            ".*_knee_joint": 0.42,
+            ".*_ankle_pitch_joint": -0.23,
+            ".*_elbow_joint": 0.0,
+            "left_shoulder_roll_joint": 0.16,
+            "left_shoulder_pitch_joint": -0.35,
+            "right_shoulder_roll_joint": -0.16,
+            "right_shoulder_pitch_joint": -0.35,
+        },
+        joint_vel={".*": 0.0},
+    ),
+    soft_joint_pos_limit_factor=0.9,
+    actuators={
+        "legs": IdealPDActuatorCfg(
+            joint_names_expr=[
+                ".*_hip_yaw_joint",
+                ".*_hip_roll_joint",
+                ".*_hip_pitch_joint",
+                ".*_knee_joint",
+                "waist_roll_joint",
+                "waist_yaw_joint",
+                "waist_pitch_joint",
+            ],
+            effort_limit={
+                ".*_hip_yaw_joint": 88,
+                ".*_hip_roll_joint": 88,
+                ".*_hip_pitch_joint": 88,
+                ".*_knee_joint": 139,
+                "waist_roll_joint": 50,
+                "waist_yaw_joint": 88,
+                "waist_pitch_joint": 50,
+            },
+            velocity_limit={
+                ".*_hip_yaw_joint": 32.0,
+                ".*_hip_roll_joint": 32.0,
+                ".*_hip_pitch_joint": 32.0,
+                ".*_knee_joint": 20.0,
+                "waist_roll_joint": 37.0,
+                "waist_yaw_joint": 32.0,
+                "waist_pitch_joint": 37.0,
+            },
+            stiffness={
+                ".*_hip_yaw_joint": 100.0,
+                ".*_hip_roll_joint": 100.0,
+                ".*_hip_pitch_joint": 100.0,
+                ".*_knee_joint": 200.0,
+                "waist_roll_joint": 400.0,
+                "waist_yaw_joint": 400.0,
+                "waist_pitch_joint": 400.0,
+            },
+            damping={
+                ".*_hip_yaw_joint": 2.5,
+                ".*_hip_roll_joint": 2.5,
+                ".*_hip_pitch_joint": 2.5,
+                ".*_knee_joint": 5.0,
+                "waist_roll_joint": 5.0,
+                "waist_yaw_joint": 5.0,
+                "waist_pitch_joint": 5.0,
+            },
+            armature={
+                ".*_hip_.*": 0.03,
+                ".*_knee_joint": 0.03,
+                "waist_roll_joint": 0.03,
+                "waist_yaw_joint": 0.03,
+                "waist_pitch_joint": 0.03,
+            },
+            friction=0.03
+        ),
+        "feet": IdealPDActuatorCfg(
+            effort_limit=50,
+            velocity_limit=37,
+            joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
+            stiffness=20.0,
+            damping={
+                ".*_ankle_pitch_joint": 0.2,
+                ".*_ankle_roll_joint": 0.1,
+            },
+            armature=0.03,
+            friction=0.03
+        ),
+        "arms": IdealPDActuatorCfg(
+            joint_names_expr=[
+                ".*_shoulder_pitch_joint",
+                ".*_shoulder_roll_joint",
+                ".*_shoulder_yaw_joint",
+                ".*_elbow_joint",
+                ".*_wrist_roll_joint",
+                ".*_wrist_pitch_joint",
+                ".*_wrist_yaw_joint",
+            ],
+            effort_limit={
+                ".*_shoulder_pitch_joint": 25,
+                ".*_shoulder_roll_joint": 25,
+                ".*_shoulder_yaw_joint": 25,
+                ".*_elbow_joint": 25,
+                ".*_wrist_roll_joint": 25,
+                ".*_wrist_pitch_joint": 5,
+                ".*_wrist_yaw_joint": 5,
+            },
+            velocity_limit={
+                ".*_shoulder_pitch_joint": 37,
+                ".*_shoulder_roll_joint": 37,
+                ".*_shoulder_yaw_joint": 37,
+                ".*_elbow_joint": 37,
+                ".*_wrist_roll_joint": 37,
+                ".*_wrist_pitch_joint": 22,
+                ".*_wrist_yaw_joint": 22,
+            },
+            stiffness={
+                ".*_shoulder_pitch_joint": 90,
+                ".*_shoulder_roll_joint": 60,
+                ".*_shoulder_yaw_joint": 20,
+                ".*_elbow_joint": 60,
+                ".*_wrist_roll_joint": 20,#40,
+                ".*_wrist_pitch_joint": 20,#40,
+                ".*_wrist_yaw_joint": 20,#40,
+            },
+            damping={
+                ".*_shoulder_pitch_joint": 2,
+                ".*_shoulder_roll_joint": 1,
+                ".*_shoulder_yaw_joint": 0.4,
+                ".*_elbow_joint": 1,
+                ".*_wrist_roll_joint": 10.0,
+                ".*_wrist_pitch_joint": 10.0,
+                ".*_wrist_yaw_joint": 10.0,
+            },
+            armature={
+                ".*_shoulder_.*": 0.03,
+                ".*_elbow_.*": 0.03,
+                ".*_wrist_.*": 0.01,
+            },
+            friction=0.03,
+        ),
+    },
+)
+

@@ -182,6 +182,8 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
             A tuple containing the observations, rewards, resets (terminated and truncated) and extras.
         """
         # process actions
+        zeros = torch.zeros_like(action)
+        action = torch.cat([action, zeros[:,:6]], dim=-1) 
         self.action_manager.process_action(action.to(self.device))
 
         self.recorder_manager.record_pre_step()

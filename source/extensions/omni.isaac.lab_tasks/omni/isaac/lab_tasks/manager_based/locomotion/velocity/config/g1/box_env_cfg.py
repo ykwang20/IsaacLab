@@ -36,7 +36,7 @@ class G1Rewards:
     """Reward terms for the MDP."""
     #TODO: add termination penalty and replace alive reward
     # -- task
-    #position_tracking = RewTerm(func=mdp.position_tracking, weight=4.,
+    # position_tracking = RewTerm(func=mdp.position_tracking, weight=4.,
     #                              params={"command_name": "target_pos_e","start_time": 0})
     # position_tracking_cos = RewTerm(func=mdp.position_tracking_cos, weight=20.,
     #                               params={"command_name": "target_pos_e","start_time": 1})
@@ -49,17 +49,17 @@ class G1Rewards:
     #termination_penalty = RewTerm(func=mdp.contact_terminated, weight=-200.0)
 
 
-    
+    # Contact penalties
     contact_exp_penalty=RewTerm(func=mdp.contact_forces_exp, weight=-1,
                             params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"]), 
                                      "threshold": 1000.0,"grad_scale":0.01})
                                     #"threshold": 500.0,"grad_scale":0.01})
     # air_penalty = RewTerm(func=mdp.body_air_time, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",
     #                                          body_names=[ ".*"]), "threshold": 1.0,})
-    # head_contact_penalty = RewTerm(func=mdp.contact_forces_exp, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",  body_names=["head_link"]), 
-    #                                   "threshold": 0,"grad_scale":0.1})
+    head_contact_penalty = RewTerm(func=mdp.contact_forces_exp, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces",  body_names=["head_link"]), 
+                                      "threshold": 0,"grad_scale":0.1})
     group_air_penalty = RewTerm(func=mdp.group_air_time, weight=-1,params={"upper_sensor_cfg": SceneEntityCfg("bodies_ground_contact",
-                                                                            body_names=[ ".*wrist.*",".*elbow_link",]), 
+                                                                            body_names=[ ".*wrist.*",".*shoulder.*",".*elbow_link",]), 
                                                                             "lower_sensor_cfg": SceneEntityCfg("bodies_ground_contact",
                                                                             body_names=[ ".*_hip_yaw_link",".*_knee_link",".*_ankle_roll_link"]),
                                                                             "threshold": 1.0,})
@@ -78,11 +78,15 @@ class G1Rewards:
     #                                                                        "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"])})
     body_slipping_penalty = RewTerm(func=mdp.body_slipping, weight=-0.1,params={"asset_cfg" :SceneEntityCfg("robot", body_names=[".*"]),
                                                                                 "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"])})
+    
+    # Joint related penalties
     action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.0002,params={"action_name":"joint_pos"})
     #action_rate_penalty=RewTerm(func=mdp.processed_action_rate_l2, weight=-0.002,params={"action_name":"joint_pos"})
 
-    # joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#-0.005,
+    #joint_deviation=RewTerm(func=mdp.joint_deviation_l1, weight=-0.005,#-0.005,
     #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    # wrist_deviation_exp=RewTerm(func=mdp.joint_deviation_exp, weight=-1.,
+    #                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*wrist.*"]), "scale": 10, "threshold": 0.5})
     joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-1,)
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     #joint_vel_clip_penalty=RewTerm(func=mdp.joint_vel_clip, weight=-1,params={"threshold": 3, "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
@@ -96,7 +100,7 @@ class G1Rewards:
 
     power_penalty=RewTerm(func=mdp.power_consumption, weight=-0.00001)
 
-
+    # Rigid body penalties
     #base_vel_penalty=RewTerm(func=mdp.base_lin_vel_clip, weight=-5)
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.005)    
     base_acc_penalty=RewTerm(func=mdp.base_lin_ang_acc, weight=-0.0001)
@@ -195,16 +199,23 @@ class ObservationsCfg:
         # base_lin_vel = ObsTerm(func=mdp.base_lin_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
         # base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
 
-        root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
-        root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
+        # root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
+        # root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
+
+        torso_lin_vel = ObsTerm(func=mdp.body_lin_vel_w, params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),},noise=Unoise(n_min=-0.2, n_max=0.2))
+        torso_ang_vel = ObsTerm(func=mdp.body_ang_vel_w, params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),},noise=Unoise(n_min=-0.2, n_max=0.2))
         # projected_gravity = ObsTerm(
         #     func=mdp.projected_gravity,
         #     noise=Unoise(n_min=-0.05, n_max=0.05),
         # )
         #base_yaw = ObsTerm(func=mdp.base_yaw_w, noise=Unoise(n_min=-0.05, n_max=0.05))
-        base_quat = ObsTerm(func=mdp.root_quat_w, params={"make_quat_unique":True},
+        # base_quat = ObsTerm(func=mdp.root_quat_w, params={"make_quat_unique":True},
+        #                     noise=EulerNoise(n_min=[-0.05,-0.05,-0.05], n_max=[0.05,0.05,0.05]))
+        # base_pos = ObsTerm(func=mdp.root_pos_w, noise=Unoise(n_min=-0.01, n_max=0.01))
+
+        torso_quat = ObsTerm(func=mdp.body_quat_w, params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]), "make_quat_unique":True},
                             noise=EulerNoise(n_min=[-0.05,-0.05,-0.05], n_max=[0.05,0.05,0.05]))
-        base_pos = ObsTerm(func=mdp.root_pos_w, noise=Unoise(n_min=-0.01, n_max=0.01))
+        torso_pos = ObsTerm(func=mdp.body_pos_w, params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),}, noise=Unoise(n_min=-0.01, n_max=0.01))  
         #target_commands = ObsTerm(func=mdp.target_pos_root_frame, params={"command_name": "target_pos_e"})
         #target_commands = ObsTerm(func=mdp.target_pos_w, params={"command_name": "target_pos_e"})
         #velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
@@ -242,7 +253,7 @@ class ObservationsCfg:
         base_pos = ObsTerm(func=mdp.root_pos_target,params={"command_name": "target_pos_e"})
         base_quat = ObsTerm(func=mdp.root_quat_w)
         joint_pos = ObsTerm(func=mdp.joint_pos_limit_normalized)
-        contact_forces = ObsTerm(func=mdp.body_contact_forces, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*_elbow_link",".*_wrist_yaw_link",".*_hip_yaw_link",".*_ankle_roll_link",".*_hip_pitch_link","torso_link","pelvis"])} )
+        contact_forces = ObsTerm(func=mdp.body_contact_forces, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*"])} )
         
         # # Temporary for testing
         # max_contact_force = ObsTerm(func=mdp.max_contact_forces,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*",])} )
@@ -311,7 +322,8 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         # post init of parent
         # Scene
         #self.curiosity=True
-        self.scene.robot = G1_29_ANNEAL_23_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        #self.scene.robot = G1_29_ANNEAL_23_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = G1_29_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.robot.spawn.articulation_props.enabled_self_collisions =True# False
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         #self.scene.contact_forces.history_length = 16

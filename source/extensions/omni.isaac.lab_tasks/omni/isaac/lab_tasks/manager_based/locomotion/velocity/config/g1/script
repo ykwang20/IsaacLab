@@ -1,0 +1,4 @@
+python '/home/isaac/IsaacLab/source/standalone/workflows/rsl_rl/play.py'  --task=Isaac-Box-G1-Play  --headless --video --num_envs=1
+
+CUDA_VISIBLE_DEVICES=0 python '/home/isaac/IsaacLab/source/standalone/workflows/rsl_rl/train.py' --task=Isaac-Box-G1 --headless
+CUDA_VISIBLE_DEVICES=1 python '/home/isaac/IsaacLab/source/standalone/workflows/rsl_rl/train.py' --task=Isaac-Box-G1 --headless

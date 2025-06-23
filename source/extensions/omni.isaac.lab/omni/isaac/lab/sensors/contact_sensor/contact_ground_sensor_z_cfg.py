@@ -32,6 +32,7 @@ class ContactGroundSensorZCfg(SensorBaseCfg):
 
     activation_contact_body_ids: list[int] = [7, 16, 23, 24, 25, 26, 32, 33, 34, 35]
     activation_detach_body_ids: list[int] = [6,13]
+   
     filter_prim_paths_expr: list[str] = ["/World/ground/terrain/mesh",]
     """The list of primitive paths (or expressions) to filter contacts with. Defaults to an empty list, in which case
     no filtering is applied.

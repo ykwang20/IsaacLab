@@ -70,6 +70,9 @@ def root_pos_w(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg(
 
     return asset.data.root_link_pos_w - env.scene.env_origins
 
+
+
+
 def root_pos_target(env: ManagerBasedEnv, command_name:str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     asset: RigidObject = env.scene[asset_cfg.name]
     return (env.command_manager.get_command(command_name)
@@ -149,6 +152,44 @@ def height_fail(
     asset: RigidObject = env.scene[asset_cfg.name]
     return torch.logical_or(asset.data.root_link_pos_w[:, 2] < minimum_height, asset.data.root_link_pos_w[:, 2] > maximum_height)
 
+"""
+Torso
+"""
+
+def body_pos_w(
+    env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Asset torso position in the environment frame."""
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    
+    return asset.data.body_pos_w[:, asset_cfg.body_ids, :].squeeze(1) - env.scene.env_origins
+
+def body_quat_w(
+    env: ManagerBasedEnv, make_quat_unique = True, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Asset torso orientation (w, x, y, z) in the environment frame."""
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    quat = asset.data.body_quat_w[:, asset_cfg.body_ids, :].squeeze(1)  # (num_envs, num_bodies, 4) -> (num_envs, 4)
+    #print('body quat w:', quat.shape)
+    return math_utils.quat_unique(quat) if make_quat_unique else quat
+
+def body_lin_vel_w(
+    env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Asset torso linear velocity in the environment frame."""
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    return asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :]
+
+def body_ang_vel_w(
+    env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Asset torso angular velocity in the environment frame."""
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    return asset.data.body_ang_vel_w[:, asset_cfg.body_ids, :]
 
 """
 Joint state.

@@ -299,8 +299,8 @@ def base_lin_vel_clip(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneE
     asset=env.scene[asset_cfg.name]
     norm_lin_vel=(torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1)-1).clip(min=0)
     
-    #input("Input Enter")
-    #print('base lin vel:',norm_lin_vel)
+    # input("Input Enter")
+    # print('base lin vel:',torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :]), dim=1))
     return norm_lin_vel
 
 def feet_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
