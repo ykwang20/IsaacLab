@@ -16,6 +16,7 @@ from .pose_2d_command import TerrainBasedPose2dCommand, UniformPose2dCommand
 from .pose_command import UniformPoseCommand
 from .velocity_command import NormalVelocityCommand, UniformVelocityCommand
 from .target_command import TargetCommand
+from .climb_command import ClimbCommand
 
 
 @configclass
@@ -28,6 +29,12 @@ class NullCommandCfg(CommandTermCfg):
         """Post initialization."""
         # set the resampling time range to infinity to avoid resampling
         self.resampling_time_range = (math.inf, math.inf)
+
+@configclass
+class ClimbCommandCfg(CommandTermCfg):
+    class_type: type= ClimbCommand
+    asset_name: str = 'robot'
+
 
 @configclass
 class TargetCommandCfg(CommandTermCfg):

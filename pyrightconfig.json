@@ -1,0 +1,18 @@
+{
+  // 告诉 Pyright 要检查哪些目录（可选，不写即检查整个工作区）
+  "include": [
+    "source/extensions/omni.isaac.lab",
+    "source/extensions/omni.isaac.lab_assets"
+
+  ],
+
+  // 关键：额外的 import 搜索路径
+  "extraPaths": [
+    "source/extensions/omni.isaac.lab",
+        "source/extensions/omni.isaac.lab_assets"
+
+  ],
+
+  // 其余保持默认即可
+  "pythonVersion": "3.10"
+}

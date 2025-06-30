@@ -361,6 +361,18 @@ class ContactSensorZ(SensorBase):
             # print('upper_contact', upper_contact)
             # print('lower_detach', lower_detach)
 
+            # # Extract Z-axis contact forces for the specified body IDs
+            # contact_forces = self._data.net_forces_w[0, self.cfg.activation_contact_body_ids, 2]
+
+            # # Find which body IDs exceed the threshold
+            # exceeding = contact_forces > self.cfg.force_threshold
+
+            # # Print only the body IDs that exceed
+            # for i, flag in enumerate(exceeding):
+            #     if flag:
+            #         print(f"Contact force exceeded at body ID: {self.cfg.activation_contact_body_ids[i]}")
+
+
             #upper
             activating=torch.logical_or(upper_contact,lower_detach)
             #activating = upper_contact

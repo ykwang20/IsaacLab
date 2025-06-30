@@ -2,3 +2,18 @@ python '/home/isaac/IsaacLab/source/standalone/workflows/rsl_rl/play.py'  --task
 
 CUDA_VISIBLE_DEVICES=0 python '/home/isaac/IsaacLab/source/standalone/workflows/rsl_rl/train.py' --task=Isaac-Box-G1 --headless
 CUDA_VISIBLE_DEVICES=1 python '/home/isaac/IsaacLab/source/standalone/workflows/rsl_rl/train.py' --task=Isaac-Box-G1 --headless
+
+git push -f
+
+-----------
+git fetch --all
+git reset --hard origin/main
+
+python source/standalone/workflows/rsl_rl/play.py
+sudo chown -R yikai:yikai /home/yikai/IsaacLab/source/logs/
+
+python '/home/yikai/IsaacLab/docker/container.py' enter yikai
+CUDA_VISIBLE_DEVICES=0 python './source/standalone/workflows/rsl_rl/train.py' --task=Isaac-Box-G1 --headless
+
+python '/home/yikai/IsaacLab/docker/container.py' enter yikai
+CUDA_VISIBLE_DEVICES=1 python './source/standalone/workflows/rsl_rl/train.py' --task=Isaac-Box-G1 --headless

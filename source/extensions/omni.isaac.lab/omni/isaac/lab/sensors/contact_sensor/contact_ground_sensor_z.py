@@ -362,8 +362,8 @@ class ContactGroundSensorZ(SensorBase):
             # print('lower_detach', lower_detach)
 
             #upper
-            activating=torch.logical_or(upper_contact,lower_detach)
-            #activating = upper_contact
+            #activating=torch.logical_or(upper_contact,lower_detach)
+            activating = upper_contact
             
             activating=torch.logical_and(activating,self._timestamp[env_ids] > 0.1)
             self.activated[env_ids] = torch.where(activating, True, self.activated[env_ids])

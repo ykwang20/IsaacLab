@@ -40,6 +40,12 @@ class G1Rewards:
     #                              params={"command_name": "target_pos_e","start_time": 0})
     # position_tracking_cos = RewTerm(func=mdp.position_tracking_cos, weight=20.,
     #                               params={"command_name": "target_pos_e","start_time": 1})
+    standing_joint = RewTerm(func=mdp.standing_joint_deviation, weight=-0.1,#-0.005,
+                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
+    standing_orientation = RewTerm(func=mdp.standing_flat_orientation, weight=-5)
+    standing_lin_vel = RewTerm(func=mdp.standing_lin_vel, weight=-2.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
+    standing_ang_vel = RewTerm(func=mdp.standing_ang_vel, weight=-0.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
+        
     downward_penalty = RewTerm(func=mdp.downward_penalty, weight=-4)
     backward_penalty = RewTerm(func=mdp.com_backward_penalty, weight=-2)
     alive_reward=RewTerm(func=mdp.is_alive, weight=11)
@@ -50,6 +56,8 @@ class G1Rewards:
 
 
     # Contact penalties
+    contact_on_wall_penalty = RewTerm(func=mdp.contact_on_wall, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"]), 
+                                      "wall_x": 1.5})
     contact_exp_penalty=RewTerm(func=mdp.contact_forces_exp, weight=-1,
                             params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"]), 
                                      "threshold": 1000.0,"grad_scale":0.01})
@@ -127,6 +135,16 @@ class TargetCommandsCfg:
         radius_range=((1.75, 3.)),
         debug_vis=True,
         success_threshold=0.06,
+    )
+
+@configclass
+class ClimbCommandsCfg:
+    """Command specifications for the MDP."""
+
+    climb_command = mdp.ClimbCommandCfg(
+        asset_name="robot",
+        resampling_time_range=(7., 7.),
+        debug_vis=False,
     )
 
 
@@ -243,28 +261,28 @@ class ObservationsCfg:
     # observation groups
     policy: PolicyCfg = PolicyCfg()
 
-    @configclass
-    class CuriosityCfg(ObsGroup):
-        """Observations for policy group."""
+    # @configclass
+    # class CuriosityCfg(ObsGroup):
+    #     """Observations for policy group."""
 
-        # observation terms (order preserved)
-        base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
-        base_pos = ObsTerm(func=mdp.root_pos_target,params={"command_name": "target_pos_e"})
-        base_quat = ObsTerm(func=mdp.root_quat_w)
-        joint_pos = ObsTerm(func=mdp.joint_pos_limit_normalized)
-        contact_forces = ObsTerm(func=mdp.body_contact_forces, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*"])} )
+    #     # observation terms (order preserved)
+    #     base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
+    #     base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
+    #     base_pos = ObsTerm(func=mdp.root_pos_target,params={"command_name": "target_pos_e"})
+    #     base_quat = ObsTerm(func=mdp.root_quat_w)
+    #     joint_pos = ObsTerm(func=mdp.joint_pos_limit_normalized)
+    #     contact_forces = ObsTerm(func=mdp.body_contact_forces, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*"])} )
         
-        # # Temporary for testing
-        # max_contact_force = ObsTerm(func=mdp.max_contact_forces,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*",])} )
-        # base_acc = ObsTerm(func=mdp.base_acc)
+    #     # # Temporary for testing
+    #     # max_contact_force = ObsTerm(func=mdp.max_contact_forces,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[ ".*",])} )
+    #     # base_acc = ObsTerm(func=mdp.base_acc)
 
-        def __post_init__(self):
-            self.enable_corruption = False#True
-            self.concatenate_terms =True
+    #     def __post_init__(self):
+    #         self.enable_corruption = False#True
+    #         self.concatenate_terms =True
 
-    # observation groups
-    rnd_state: CuriosityCfg = CuriosityCfg()
+    # # observation groups
+    # rnd_state: CuriosityCfg = CuriosityCfg()
 
 @configclass
 class TargetCurriculumCfg:
@@ -312,7 +330,7 @@ class CuriosityCfg:
 class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
     rewards: G1Rewards = G1Rewards()
     terminations: TerminationsCfg = TerminationsCfg()
-    commands: TargetCommandsCfg = TargetCommandsCfg()
+    commands: ClimbCommandsCfg = ClimbCommandsCfg()
     observations: ObservationsCfg = ObservationsCfg()
     curriculum: HeightCurriculumCfg = HeightCurriculumCfg()
     actions: ActionsCfg = ActionsCfg()
@@ -333,7 +351,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         #self.scene.height_scanner.pattern_cfg=patterns.GridPatternCfg(resolution=0.2, size=[1.6, 1.0])
        
         super().__post_init__()
-        self.episode_length_s =6#10#20
+        self.episode_length_s =7#7.5#10#20
         # Randomization
 
         # self.events.push_robot.interval_range_s=(1.,3.) #= None
@@ -358,10 +376,10 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         #self.events.add_base_mass= None
 
 
-        self.events.reset_robot_joints.params["position_range"] = (0.7, 1.3)
+        self.events.reset_robot_joints.params["position_range"] = (0.85, 1.15)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
-            "pose_range": {"x": (1.25, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (-math.pi/6, math.pi/6)},#"yaw": (math.pi, math.pi)},
+            "pose_range": {"x": (1.2, 1.3), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (-math.pi/6, math.pi/6)},#"yaw": (math.pi, math.pi)},
             #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -389,9 +407,11 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
         super().__post_init__()
 
         # make a smaller scene for play
+        self.scene.contact_forces.debug_vis = True
+
         self.scene.num_envs = 10
         self.scene.env_spacing = 2.5
-        self.episode_length_s =6#10.0
+        self.episode_length_s =5#10.0
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
         # reduce the number of terrains to save memory
