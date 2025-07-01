@@ -114,7 +114,8 @@ class ClimbCommand(CommandTerm):
             # If the reset buffer is not present, reset all environments
             reset_env_ids = torch.arange(self.num_envs, device=self.device)
         self.climb_command[env_ids] = 1
-        self.climb_command[reset_env_ids] =  0
+        if self.cfg.activated:
+            self.climb_command[reset_env_ids] =  0
 
         self.mass.copy_(self.robot.root_physx_view.get_masses())
 

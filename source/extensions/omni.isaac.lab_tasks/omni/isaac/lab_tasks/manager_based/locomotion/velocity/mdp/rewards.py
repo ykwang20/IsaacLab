@@ -307,6 +307,20 @@ def standing_ang_vel(
     reward =  torch.sum(torch.square(ang_vel), dim=-1).squeeze(-1)  # L2 penalty on the linear velocity
     return torch.where(climb_command > 0, torch.zeros_like(reward), reward)
 
+def standing_height_l2(
+    env: ManagerBasedRLEnv,  desired_height: float ,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Penalize the height of the base in the world frame."""
+    # extract the used quantities (to enable type-hinting)
+    climb_command = env.command_manager.get_command('climb_command')
+    asset = env.scene[asset_cfg.name]
+    # compute out of limits constraints
+    height = asset.data.root_pos_w[:, 2] - env.scene.env_origins[:, 2]  # relative to the environment origin
+    reward = torch.square(height - desired_height)
+    reward=torch.exp(-20*reward)  # Exponential kernel to penalize deviations from the desired height
+  
+    return torch.where(climb_command > 0, torch.zeros_like(reward), reward)
+
 def base_lin_ang_acc(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize the linear acceleration of bodies using L2-kernel."""
     asset=env.scene[asset_cfg.name]

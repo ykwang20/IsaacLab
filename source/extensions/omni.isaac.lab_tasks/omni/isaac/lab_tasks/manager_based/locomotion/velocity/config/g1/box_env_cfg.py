@@ -45,7 +45,8 @@ class G1Rewards:
     standing_orientation = RewTerm(func=mdp.standing_flat_orientation, weight=-5)
     standing_lin_vel = RewTerm(func=mdp.standing_lin_vel, weight=-2.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
     standing_ang_vel = RewTerm(func=mdp.standing_ang_vel, weight=-0.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
-        
+    standing_height = RewTerm(func=mdp.standing_height_l2, weight=-0.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),"desired_height":0.74})
+
     downward_penalty = RewTerm(func=mdp.downward_penalty, weight=-4)
     backward_penalty = RewTerm(func=mdp.com_backward_penalty, weight=-2)
     alive_reward=RewTerm(func=mdp.is_alive, weight=11)
@@ -142,6 +143,7 @@ class ClimbCommandsCfg:
     """Command specifications for the MDP."""
 
     climb_command = mdp.ClimbCommandCfg(
+        activated=True
         asset_name="robot",
         resampling_time_range=(7., 7.),
         debug_vis=False,

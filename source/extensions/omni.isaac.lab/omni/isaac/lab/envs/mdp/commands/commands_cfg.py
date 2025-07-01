@@ -34,6 +34,7 @@ class NullCommandCfg(CommandTermCfg):
 class ClimbCommandCfg(CommandTermCfg):
     class_type: type= ClimbCommand
     asset_name: str = 'robot'
+    activated: bool = True
 
 
 @configclass
