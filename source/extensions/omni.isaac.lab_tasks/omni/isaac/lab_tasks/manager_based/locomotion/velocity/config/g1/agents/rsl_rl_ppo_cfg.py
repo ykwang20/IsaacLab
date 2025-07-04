@@ -63,7 +63,7 @@ class G1BoxPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     class_name ="OnPolicyRunnerLip"
     num_steps_per_env = 24
     max_iterations = 19000#3000
-    save_interval = 100#50
+    save_interval = 500#50
     experiment_name = "g1_box_23dof"
     empirical_normalization = True#False
     policy = RslRlPpoActorCriticCfg(

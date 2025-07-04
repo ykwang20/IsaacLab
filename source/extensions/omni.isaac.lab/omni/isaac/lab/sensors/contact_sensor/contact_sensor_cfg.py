@@ -5,6 +5,8 @@
 
 from omni.isaac.lab.markers import VisualizationMarkersCfg
 from omni.isaac.lab.markers.config import CONTACT_SENSOR_MARKER_CFG
+import omni.isaac.lab.sim as sim_utils
+
 from omni.isaac.lab.utils import configclass
 
 from ..sensor_base_cfg import SensorBaseCfg
@@ -51,7 +53,17 @@ class ContactSensorCfg(SensorBaseCfg):
         for more details.
     """
 
-    visualizer_cfg: VisualizationMarkersCfg = CONTACT_SENSOR_MARKER_CFG.replace(prim_path="/Visuals/ContactSensor")
+    visualizer_cfg: VisualizationMarkersCfg = CONTACT_SENSOR_MARKER_CFG.replace(prim_path="/Visuals/ContactSensor", markers={
+        "contact": sim_utils.SphereCfg(
+            radius=0.05,
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0)),
+        ),
+        "no_contact": sim_utils.SphereCfg(
+            radius=0.02,
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0)),
+            visible=False,
+        ),
+    },)
     """The configuration object for the visualization markers. Defaults to CONTACT_SENSOR_MARKER_CFG.
 
     .. note::

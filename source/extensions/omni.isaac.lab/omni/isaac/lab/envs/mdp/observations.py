@@ -328,6 +328,9 @@ def imu_lin_acc(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg
 def box_height(env: ManagerBasedEnv) -> torch.Tensor:
     return (0-env.scene.env_origins[:, 2]).unsqueeze(-1)
 
+def climb_command(env: ManagerBasedEnv) -> torch.Tensor:
+    return env.command_manager.get_command('climb_command').unsqueeze(-1)
+
 def body_mass(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Mass of the body links of an articulation in the simulation world frame.
 

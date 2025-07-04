@@ -15,7 +15,7 @@ import torch
 from typing import TYPE_CHECKING
 
 from omni.isaac.lab.managers import SceneEntityCfg
-from omni.isaac.lab.sensors import ContactSensor, ContactSensorZ
+from omni.isaac.lab.sensors import ContactSensor, ContactSensorZ, ContactGroundSensorZ
 from omni.isaac.lab.utils.math import quat_rotate_inverse, yaw_quat
 
 if TYPE_CHECKING:
@@ -187,7 +187,7 @@ def downward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -
     reward = torch.where(penalty, torch.ones_like(downward), torch.zeros_like(downward))
     return torch.where(climb_command > 0, reward, torch.zeros_like(reward))
 
-def com_backward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+def com_backward_penalty(env, wall_x:float,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     asset = env.scene[asset_cfg.name]
     climb_command = env.command_manager.get_command('climb_command')
     max_com_x = env.command_manager.get_term('climb_command').max_com_x
@@ -200,7 +200,7 @@ def com_backward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"
     #print('com:',current_com_x)
     backward = max_com_x - current_com_x
     success = torch.logical_and(asset.data.body_pos_w[:, :, 2].min(dim=1)[0] > 0.02, 
-                                asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0] > 2)
+                                (asset.data.body_pos_w[:, :, 0] - env.scene.env_origins[:,0]).min(dim=1)[0] > wall_x)
     #print('current root x:',asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0])
     #penalty = torch.logical_or(backward > 0, backward.abs() < 0.00001)
     penalty = torch.logical_and(backward > 0,~success)
@@ -458,12 +458,38 @@ def body_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold:
     # #print('on air:',on_air)
     # return on_air
 
+# def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, lower_sensor_cfg: SceneEntityCfg,feet_sensor_cfg: SceneEntityCfg,threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+#     """Terminate when the contact force on the sensor exceeds the force threshold."""
+#     # penelize the time spent when there are at least one group of bodies in the air
+#     asset = env.scene[asset_cfg.name]
+
+#     contact_sensor: ContactGroundSensorZ = env.scene.sensors[upper_sensor_cfg.name]
+
+#     upper_bodies_air_time=contact_sensor.data.current_air_time[:, upper_sensor_cfg.body_ids]
+#     lower_bodies_air_time=contact_sensor.data.current_air_time[:, lower_sensor_cfg.body_ids]
+#     feet_air_time = contact_sensor.data.current_air_time[:, feet_sensor_cfg.body_ids]
+    
+
+#     upper_air_time=upper_bodies_air_time.min(dim=1)[0]
+#     lower_air_time=lower_bodies_air_time.min(dim=1)[0]
+    
+#     feet_air_time=feet_air_time.max(dim=1)[0]
+
+#     upper_lower_air_time=torch.maximum(upper_air_time, lower_air_time)
+    
+#     air_time=torch.minimum(upper_lower_air_time, feet_air_time)
+#     climb_command = env.command_manager.get_command('climb_command')
+#     air_time=torch.where(climb_command > 0, air_time, torch.zeros_like(air_time))
+#     # input("Input Enter")
+#     # print('air time:', air_time)
+#     return (torch.exp(20*air_time)-1).clip(max=200.0)
+
 def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, lower_sensor_cfg: SceneEntityCfg,threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Terminate when the contact force on the sensor exceeds the force threshold."""
     # penelize the time spent when there are at least one group of bodies in the air
     asset = env.scene[asset_cfg.name]
 
-    contact_sensor: ContactSensorZ = env.scene.sensors[upper_sensor_cfg.name]
+    contact_sensor: ContactGroundSensorZ = env.scene.sensors[upper_sensor_cfg.name]
 
     upper_bodies_air_time=contact_sensor.data.current_air_time[:, upper_sensor_cfg.body_ids]
     lower_bodies_air_time=contact_sensor.data.current_air_time[:, lower_sensor_cfg.body_ids]

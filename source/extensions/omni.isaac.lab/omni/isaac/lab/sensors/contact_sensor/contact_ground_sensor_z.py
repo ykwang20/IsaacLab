@@ -362,8 +362,8 @@ class ContactGroundSensorZ(SensorBase):
             # print('lower_detach', lower_detach)
 
             #upper
-            #activating=torch.logical_or(upper_contact,lower_detach)
-            activating = upper_contact
+            activating=torch.logical_or(upper_contact,lower_detach)
+            #activating = upper_contact
             
             activating=torch.logical_and(activating,self._timestamp[env_ids] > 0.1)
             self.activated[env_ids] = torch.where(activating, True, self.activated[env_ids])
@@ -411,8 +411,9 @@ class ContactGroundSensorZ(SensorBase):
             return
         # marker indices
         # 0: contact, 1: no contact
-        net_contact_force_w = torch.norm(self._data.net_forces_w, dim=-1)
-        marker_indices = torch.where(net_contact_force_w > self.cfg.force_threshold, 0, 1)
+        # net_contact_force_w = torch.norm(self._data.net_forces_w, dim=-1)
+        # marker_indices = torch.where(net_contact_force_w > self.cfg.force_threshold, 0, 1)
+        marker_indices = torch.where(self._data.force_matrix_w[:, :,0, 2] > self.cfg.force_threshold, 0, 1)
         # check if prim is visualized
         if self.cfg.track_pose:
             frame_origins: torch.Tensor = self._data.pos_w

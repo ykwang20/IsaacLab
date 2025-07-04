@@ -45,10 +45,10 @@ class G1Rewards:
     standing_orientation = RewTerm(func=mdp.standing_flat_orientation, weight=-5)
     standing_lin_vel = RewTerm(func=mdp.standing_lin_vel, weight=-2.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
     standing_ang_vel = RewTerm(func=mdp.standing_ang_vel, weight=-0.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
-    standing_height = RewTerm(func=mdp.standing_height_l2, weight=-0.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),"desired_height":0.74})
+    standing_height = RewTerm(func=mdp.standing_height_l2, weight=5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),"desired_height":0.74})
 
     downward_penalty = RewTerm(func=mdp.downward_penalty, weight=-4)
-    backward_penalty = RewTerm(func=mdp.com_backward_penalty, weight=-2)
+    backward_penalty = RewTerm(func=mdp.com_backward_penalty, weight=-2, params={"wall_x" :1.5})
     alive_reward=RewTerm(func=mdp.is_alive, weight=11)
     wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-1,params={"command_name": "target_pos_e"}) #weight=-2
     #move_in_direction = RewTerm(func=mdp.move_in_direction, weight=5.0,params={"command_name": "target_pos_e"})
@@ -71,6 +71,8 @@ class G1Rewards:
                                                                             body_names=[ ".*wrist.*",".*shoulder.*",".*elbow_link",]), 
                                                                             "lower_sensor_cfg": SceneEntityCfg("bodies_ground_contact",
                                                                             body_names=[ ".*_hip_yaw_link",".*_knee_link",".*_ankle_roll_link"]),
+                                                                            # "feet_sensor_cfg": SceneEntityCfg("bodies_ground_contact",
+                                                                            # body_names=[ ".*_ankle_roll_link",]),
                                                                             "threshold": 1.0,})
     # knee_air_time_penalty = RewTerm(func=mdp.knee_air_time, weight=-1,params={
     #                                         "sensor_cfg": SceneEntityCfg("contact_forces",
@@ -99,7 +101,7 @@ class G1Rewards:
     joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-1,)
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     #joint_vel_clip_penalty=RewTerm(func=mdp.joint_vel_clip, weight=-1,params={"threshold": 3, "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
-    joint_vel_exp_penalty=RewTerm(func=mdp.joint_vel_exp, weight=-1,params={"grad_scale": 1,"threshold": 10, "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
+    #joint_vel_exp_penalty=RewTerm(func=mdp.joint_vel_exp, weight=-1,params={"grad_scale": 1,"threshold": 10, "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-1, params={"soft_ratio": 0.9, "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     joint_acc_penalty=RewTerm(func=mdp.joint_acc_l2, weight=-2e-8,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     #joint_vel_lim_penalty=RewTerm(func=mdp.joint_velocity_limits, weight=-0.1, params={"soft_ratio": 1., "asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
@@ -143,9 +145,9 @@ class ClimbCommandsCfg:
     """Command specifications for the MDP."""
 
     climb_command = mdp.ClimbCommandCfg(
-        activated=True
+        activated=True,
         asset_name="robot",
-        resampling_time_range=(7., 7.),
+        resampling_time_range=(1., 1.),
         debug_vis=False,
     )
 
@@ -243,6 +245,7 @@ class ObservationsCfg:
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-1.5, n_max=1.5))
         actions = ObsTerm(func=mdp.last_processed_action,params={"action_name":"joint_pos"})
         box_height = ObsTerm(func=mdp.box_height, noise=Unoise(n_min=-0.01, n_max=0.01))
+        climb_command = ObsTerm(func=mdp.climb_command)
         #trunk_mass = ObsTerm(func=mdp.body_mass, params={"asset_cfg": SceneEntityCfg("robot", body_names=["torso_link"])})
 
         #time = ObsTerm(func=mdp.time)
@@ -381,7 +384,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (0.85, 1.15)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
-            "pose_range": {"x": (1.2, 1.3), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (-math.pi/6, math.pi/6)},#"yaw": (math.pi, math.pi)},
+            "pose_range": {"x": (1.25, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (-math.pi/6, math.pi/6)},#"yaw": (math.pi, math.pi)},
             #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -410,6 +413,7 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
 
         # make a smaller scene for play
         self.scene.contact_forces.debug_vis = True
+        self.scene.bodies_ground_contact.debug_vis = True
 
         self.scene.num_envs = 10
         self.scene.env_spacing = 2.5

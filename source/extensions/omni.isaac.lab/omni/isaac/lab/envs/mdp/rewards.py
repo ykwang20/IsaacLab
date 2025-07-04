@@ -349,7 +349,8 @@ def contact_forces_exp(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: Sce
             
     max_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0]
     max_contact_force = torch.max(max_contact,dim=1)[0]
-
+    # input("Input Enter")
+    # print("max contact force: ", max_contact_force)
     max_contact_id = torch.max(max_contact,dim=1)[1]
     body_names = contact_sensor.body_names
     # if max_contact_force >500:
