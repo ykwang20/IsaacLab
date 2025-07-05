@@ -71,8 +71,8 @@ class G1Rewards:
                                                                             body_names=[ ".*wrist.*",".*shoulder.*",".*elbow_link",]), 
                                                                             "lower_sensor_cfg": SceneEntityCfg("bodies_ground_contact",
                                                                             body_names=[ ".*_hip_yaw_link",".*_knee_link",".*_ankle_roll_link"]),
-                                                                            # "feet_sensor_cfg": SceneEntityCfg("bodies_ground_contact",
-                                                                            # body_names=[ ".*_ankle_roll_link",]),
+                                                                            "feet_sensor_cfg": SceneEntityCfg("bodies_ground_contact",
+                                                                            body_names=[ ".*_ankle_roll_link",]),
                                                                             "threshold": 1.0,})
     # knee_air_time_penalty = RewTerm(func=mdp.knee_air_time, weight=-1,params={
     #                                         "sensor_cfg": SceneEntityCfg("contact_forces",
@@ -203,7 +203,7 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.55, 0.9), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.55, 0.8), platform_width=3),
         #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.4, 0.8), platform_width=3),
     },
     )
@@ -301,7 +301,8 @@ class TargetCurriculumCfg:
 class HeightCurriculumCfg:
     """Curriculum terms for the MDP."""
 
-    terrain_levels = CurrTerm(func=mdp.terrain_levels_height)
+    terrain_levels = CurrTerm(func=mdp.terrain_levels_height, 
+                              params={"update_prob": 0.8})
     
     
 @configclass
@@ -384,7 +385,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (0.85, 1.15)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
-            "pose_range": {"x": (1.25, 1.35), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (-math.pi/6, math.pi/6)},#"yaw": (math.pi, math.pi)},
+            "pose_range": {"x": (1.25, 1.25), "y": (-0.6, 0.6),"z":(0.03,0.03), "yaw": (-math.pi/6, math.pi/6)},#"yaw": (math.pi, math.pi)},
             #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -417,7 +418,7 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
 
         self.scene.num_envs = 10
         self.scene.env_spacing = 2.5
-        self.episode_length_s =5#10.0
+        self.episode_length_s =7#10.0
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
         # reduce the number of terrains to save memory

@@ -200,7 +200,7 @@ def com_backward_penalty(env, wall_x:float,asset_cfg: SceneEntityCfg = SceneEnti
     #print('com:',current_com_x)
     backward = max_com_x - current_com_x
     success = torch.logical_and(asset.data.body_pos_w[:, :, 2].min(dim=1)[0] > 0.02, 
-                                (asset.data.body_pos_w[:, :, 0] - env.scene.env_origins[:,0]).min(dim=1)[0] > wall_x)
+                                (asset.data.body_pos_w[:, :, 0] - env.scene.env_origins[:,0].unsqueeze(1)).min(dim=1)[0] > wall_x)
     #print('current root x:',asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0])
     #penalty = torch.logical_or(backward > 0, backward.abs() < 0.00001)
     penalty = torch.logical_and(backward > 0,~success)
@@ -458,33 +458,7 @@ def body_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold:
     # #print('on air:',on_air)
     # return on_air
 
-# def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, lower_sensor_cfg: SceneEntityCfg,feet_sensor_cfg: SceneEntityCfg,threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
-#     """Terminate when the contact force on the sensor exceeds the force threshold."""
-#     # penelize the time spent when there are at least one group of bodies in the air
-#     asset = env.scene[asset_cfg.name]
-
-#     contact_sensor: ContactGroundSensorZ = env.scene.sensors[upper_sensor_cfg.name]
-
-#     upper_bodies_air_time=contact_sensor.data.current_air_time[:, upper_sensor_cfg.body_ids]
-#     lower_bodies_air_time=contact_sensor.data.current_air_time[:, lower_sensor_cfg.body_ids]
-#     feet_air_time = contact_sensor.data.current_air_time[:, feet_sensor_cfg.body_ids]
-    
-
-#     upper_air_time=upper_bodies_air_time.min(dim=1)[0]
-#     lower_air_time=lower_bodies_air_time.min(dim=1)[0]
-    
-#     feet_air_time=feet_air_time.max(dim=1)[0]
-
-#     upper_lower_air_time=torch.maximum(upper_air_time, lower_air_time)
-    
-#     air_time=torch.minimum(upper_lower_air_time, feet_air_time)
-#     climb_command = env.command_manager.get_command('climb_command')
-#     air_time=torch.where(climb_command > 0, air_time, torch.zeros_like(air_time))
-#     # input("Input Enter")
-#     # print('air time:', air_time)
-#     return (torch.exp(20*air_time)-1).clip(max=200.0)
-
-def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, lower_sensor_cfg: SceneEntityCfg,threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, lower_sensor_cfg: SceneEntityCfg,feet_sensor_cfg: SceneEntityCfg,threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Terminate when the contact force on the sensor exceeds the force threshold."""
     # penelize the time spent when there are at least one group of bodies in the air
     asset = env.scene[asset_cfg.name]
@@ -493,50 +467,82 @@ def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, low
 
     upper_bodies_air_time=contact_sensor.data.current_air_time[:, upper_sensor_cfg.body_ids]
     lower_bodies_air_time=contact_sensor.data.current_air_time[:, lower_sensor_cfg.body_ids]
-
+    feet_air_time = contact_sensor.data.current_air_time[:, feet_sensor_cfg.body_ids]
     
 
     upper_air_time=upper_bodies_air_time.min(dim=1)[0]
     lower_air_time=lower_bodies_air_time.min(dim=1)[0]
+    
+    feet_air_time=feet_air_time.max(dim=1)[0]
 
-    air_time=torch.maximum(upper_air_time, lower_air_time)
-    root_pos=asset.data.root_pos_w[:, :]-env.scene.env_origins[:,:]
-    #print('root height:',root_height)
-    #activated = torch.logical_and(root_pos[:,2]> 0.55,contact_sensor.activated)
-    #activated = torch.logical_and(contact_sensor.activated, root_pos[:,0]> 1.35)
+    upper_lower_air_time=torch.maximum(upper_air_time, lower_air_time)
+    
+    air_time=torch.minimum(upper_lower_air_time, feet_air_time)
     climb_command = env.command_manager.get_command('climb_command')
-    activated = contact_sensor.activated
-    activated = torch.where(climb_command > 0, activated, torch.zeros_like(activated).bool())
-    # user_input = input("Input Enter")
-    # print('activated:',activated)
-    air_time=torch.where(activated, air_time, torch.zeros_like(air_time))
-    bodies_id_list=upper_sensor_cfg.body_ids + lower_sensor_cfg.body_ids
-    # print('contact activated:',contact_sensor.activated)
-    # print('root pos:',root_pos[:,0])
-    # print('activated:',activated)
+    air_time=torch.where(climb_command > 0, air_time, torch.zeros_like(air_time))
+    if hasattr(env, "episode_length_buf"):
+        delay = (env.episode_length_buf * env.step_dt).unsqueeze(-1) < 1.5 & climb_command > 0
+        air_time = torch.where(delay, lower_air_time, air_time,)
+    #air_time=torch.where(climb_command > 0, air_time, feet_air_time)
+
+
+    # input("Input Enter")
     # print('air time:', air_time)
-    # print('root pos:',root_pos[:,0])
-    # print('upper body names:', [contact_sensor.body_names[i] for i in upper_sensor_cfg.body_ids], "upper body ids:", upper_sensor_cfg.body_ids)
-    # print('lower body names:', [contact_sensor.body_names[i] for i in lower_sensor_cfg.body_ids], "lower body ids:", lower_sensor_cfg.body_ids)
-
-    #if air_time > 0.0001:
-    #print('air time:', air_time)
-    #else:
-    #print('bodies air time:', bodies_air_time)
-    # bodies_air_time=contact_sensor.data.current_air_time[:, :]
-    # idx_list= torch.nonzero(bodies_air_time[0] < 0.001).squeeze(-1).tolist()
-    # lower_idx_list = torch.nonzero(lower_bodies_air_time[0] < 0.001).squeeze(-1).tolist()
-    # upper_idx_list = torch.nonzero(upper_bodies_air_time[0] < 0.001).squeeze(-1).tolist()
-    # #print('idx list:', idx_list)
-
-    #print('contact body:', [contact_sensor.body_names[i] for i in idx_list if i in bodies_id_list])
-    #     #print('contact forces:', contact_forces[0, idx_list])
-    # net_contact_forces = contact_sensor.data.net_forces_w_history
-
-    # print('contact forces:',net_contact_forces[0, 0,lower_sensor_cfg.body_ids, :])
-    # print('air time:', air_time)
-   
     return (torch.exp(20*air_time)-1).clip(max=200.0)
+
+# def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, lower_sensor_cfg: SceneEntityCfg,threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+#     """Terminate when the contact force on the sensor exceeds the force threshold."""
+#     # penelize the time spent when there are at least one group of bodies in the air
+#     asset = env.scene[asset_cfg.name]
+
+#     contact_sensor: ContactGroundSensorZ = env.scene.sensors[upper_sensor_cfg.name]
+
+#     upper_bodies_air_time=contact_sensor.data.current_air_time[:, upper_sensor_cfg.body_ids]
+#     lower_bodies_air_time=contact_sensor.data.current_air_time[:, lower_sensor_cfg.body_ids]
+
+    
+
+#     upper_air_time=upper_bodies_air_time.min(dim=1)[0]
+#     lower_air_time=lower_bodies_air_time.min(dim=1)[0]
+
+#     air_time=torch.maximum(upper_air_time, lower_air_time)
+#     root_pos=asset.data.root_pos_w[:, :]-env.scene.env_origins[:,:]
+#     #print('root height:',root_height)
+#     #activated = torch.logical_and(root_pos[:,2]> 0.55,contact_sensor.activated)
+#     #activated = torch.logical_and(contact_sensor.activated, root_pos[:,0]> 1.35)
+#     climb_command = env.command_manager.get_command('climb_command')
+#     activated = contact_sensor.activated
+#     activated = torch.where(climb_command > 0, activated, torch.zeros_like(activated).bool())
+#     # user_input = input("Input Enter")
+#     # print('activated:',activated)
+#     air_time=torch.where(activated, air_time, torch.zeros_like(air_time))
+#     bodies_id_list=upper_sensor_cfg.body_ids + lower_sensor_cfg.body_ids
+#     # print('contact activated:',contact_sensor.activated)
+#     # print('root pos:',root_pos[:,0])
+#     # print('activated:',activated)
+#     # print('air time:', air_time)
+#     # print('root pos:',root_pos[:,0])
+#     # print('upper body names:', [contact_sensor.body_names[i] for i in upper_sensor_cfg.body_ids], "upper body ids:", upper_sensor_cfg.body_ids)
+#     # print('lower body names:', [contact_sensor.body_names[i] for i in lower_sensor_cfg.body_ids], "lower body ids:", lower_sensor_cfg.body_ids)
+
+#     #if air_time > 0.0001:
+#     #print('air time:', air_time)
+#     #else:
+#     #print('bodies air time:', bodies_air_time)
+#     # bodies_air_time=contact_sensor.data.current_air_time[:, :]
+#     # idx_list= torch.nonzero(bodies_air_time[0] < 0.001).squeeze(-1).tolist()
+#     # lower_idx_list = torch.nonzero(lower_bodies_air_time[0] < 0.001).squeeze(-1).tolist()
+#     # upper_idx_list = torch.nonzero(upper_bodies_air_time[0] < 0.001).squeeze(-1).tolist()
+#     # #print('idx list:', idx_list)
+
+#     #print('contact body:', [contact_sensor.body_names[i] for i in idx_list if i in bodies_id_list])
+#     #     #print('contact forces:', contact_forces[0, idx_list])
+#     # net_contact_forces = contact_sensor.data.net_forces_w_history
+
+#     # print('contact forces:',net_contact_forces[0, 0,lower_sensor_cfg.body_ids, :])
+#     # print('air time:', air_time)
+   
+#     return (torch.exp(20*air_time)-1).clip(max=200.0)
 
 def respective_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, lower_sensor_cfg: SceneEntityCfg,threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Terminate when the contact force on the sensor exceeds the force threshold."""

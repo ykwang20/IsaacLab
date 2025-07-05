@@ -351,6 +351,7 @@ def contact_forces_exp(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: Sce
     max_contact_force = torch.max(max_contact,dim=1)[0]
     # input("Input Enter")
     # print("max contact force: ", max_contact_force)
+
     max_contact_id = torch.max(max_contact,dim=1)[1]
     body_names = contact_sensor.body_names
     # if max_contact_force >500:
@@ -366,6 +367,7 @@ def contact_on_wall(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, wall_x: 
     # extract the used quantities (to enable type-hinting)
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
     net_contact_forces = contact_sensor.data.net_forces_w_history
+    # print('time:', env.episode_length_buf* env.step_dt)
     # compute the violation
     asset: RigidObject = env.scene["robot"]
     id_asset = asset.find_bodies(contact_sensor.body_names, preserve_order=True)[0]

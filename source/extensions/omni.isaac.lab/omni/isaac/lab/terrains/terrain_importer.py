@@ -304,6 +304,59 @@ class TerrainImporter:
             # compute environment origins
             self.env_origins = self._compute_env_origins_grid(self.cfg.num_envs, self.cfg.env_spacing)
 
+    def update_env_origins_prob(
+        self,
+        env_ids: torch.Tensor,
+        move_up: torch.Tensor,
+        move_down: torch.Tensor,
+        p: float = 0.8,
+):
+        """Vectorised curriculum update of terrain levels & env origins.
+
+        • If ``move_up`` is True: upgrade with prob *p*, otherwise reset to a
+        random level ≤ current.
+        • If ``move_down`` is True: drop one level (floor at 0).
+        • Exceeding ``max_terrain_level`` sends env to a random legal level.
+        """
+
+        if self.terrain_origins is None:
+            return
+
+        # Current levels of the selected envs
+        levels = self.terrain_levels[env_ids]
+        new_levels = levels.clone()
+
+        # Random numbers for the whole slice (needed only once)
+        r = torch.rand_like(levels.float())
+
+        # ── upgrade / stay logic ────────────────────────────────────────────────
+        upgrade_mask = move_up & (r < p)
+        stay_mask    = move_up & ~upgrade_mask
+
+        new_levels[upgrade_mask] = torch.clamp(levels[upgrade_mask] + 1,
+                                            max=self.max_terrain_level)
+        if stay_mask.any():
+            cur = levels[stay_mask]
+            new_levels[stay_mask] = torch.floor(torch.rand_like(cur.float()) * (cur + 1)).long()
+
+        # ── downgrade logic ─────────────────────────────────────────────────────
+        if move_down.any():
+            new_levels[move_down] = torch.clamp(levels[move_down] - 1, min=0)
+
+        # ── handle levels ≥ max_terrain_level ──────────────────────────────────
+        too_high = new_levels >= self.max_terrain_level
+        if too_high.any():
+            new_levels[too_high] = torch.randint_like(new_levels[too_high],
+                                                    0, self.max_terrain_level)
+
+        new_levels.clamp_(min=0)
+
+        # ── commit ─────────────────────────────────────────────────────────────
+        self.terrain_levels[env_ids] = new_levels
+        self.env_origins[env_ids] = self.terrain_origins[new_levels,
+                                                        self.terrain_types[env_ids]]
+
+
     def update_env_origins(self, env_ids: torch.Tensor, move_up: torch.Tensor, move_down: torch.Tensor):
         """Update the environment origins based on the terrain levels."""
         # check if grid-like spawning

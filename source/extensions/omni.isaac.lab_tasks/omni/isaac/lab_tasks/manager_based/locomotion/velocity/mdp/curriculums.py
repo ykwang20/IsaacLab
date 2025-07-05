@@ -122,7 +122,7 @@ def terrain_levels_target(
     return torch.mean(terrain.terrain_levels.float())
 
 def terrain_levels_height(
-    env: ManagerBasedRLEnv, env_ids: Sequence[int],asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+    env: ManagerBasedRLEnv, env_ids: Sequence[int],update_prob:float=0.8,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
     """Curriculum based on the distance the of the robot to the target pos.
 
@@ -147,7 +147,8 @@ def terrain_levels_height(
     move_down = (asset.data.root_link_pos_w[env_ids, 2]-env.scene.env_origins[env_ids,2]) < 0.45
     move_down *= ~move_up
     # update terrain levels
-    terrain.update_env_origins(env_ids, move_up, move_down)
+    #terrain.update_env_origins(env_ids, move_up, move_down)
+    terrain.update_env_origins_prob(env_ids, move_up, move_down, update_prob)
     # return the mean terrain level
     return torch.mean(terrain.terrain_levels.float())
 
