@@ -305,6 +305,7 @@ def standing_ang_vel(
     # compute out of limits constraints
     ang_vel = asset.data.body_ang_vel_w[:, asset_cfg.body_ids, :]
     reward =  torch.sum(torch.square(ang_vel), dim=-1).squeeze(-1)  # L2 penalty on the linear velocity
+    reward =  torch.exp(-2 * reward)  # Exponential kernel to penalize deviations from the desired height
     return torch.where(climb_command > 0, torch.zeros_like(reward), reward)
 
 def standing_height_l2(
@@ -480,9 +481,9 @@ def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, low
     air_time=torch.minimum(upper_lower_air_time, feet_air_time)
     climb_command = env.command_manager.get_command('climb_command')
     air_time=torch.where(climb_command > 0, air_time, torch.zeros_like(air_time))
-    if hasattr(env, "episode_length_buf"):
-        delay = (env.episode_length_buf * env.step_dt).unsqueeze(-1) < 1.5 & climb_command > 0
-        air_time = torch.where(delay, lower_air_time, air_time,)
+    # if hasattr(env, "episode_length_buf"):
+    #     delay = (env.episode_length_buf * env.step_dt).unsqueeze(-1) < 1.5 & climb_command > 0
+    #     air_time = torch.where(delay, lower_air_time, air_time,)
     #air_time=torch.where(climb_command > 0, air_time, feet_air_time)
 
 

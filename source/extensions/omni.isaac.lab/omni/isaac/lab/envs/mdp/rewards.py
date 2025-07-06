@@ -226,7 +226,8 @@ def standing_joint_deviation(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg =
     asset: Articulation = env.scene[asset_cfg.name]
     # compute out of limits constraints
     angle = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
-    reward = torch.sum(torch.abs(angle), dim=1)
+    reward = torch.sum(torch.square(angle), dim=1)
+    reward = torch.exp(-0.1 * reward)  # Exponential kernel to penalize deviations from the default joint position
     return torch.where(climb_command > 0, torch.zeros_like(reward), reward)
 
 def joint_deviation_exp(env: ManagerBasedRLEnv, scale: float, threshold: float,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:

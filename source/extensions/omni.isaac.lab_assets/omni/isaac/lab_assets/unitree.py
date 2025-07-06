@@ -818,14 +818,24 @@ G1_29_MODIFIED_CFG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.74),
         joint_pos={
-            ".*_hip_pitch_joint": -0.20,
+            # ".*_hip_pitch_joint": -0.20,
+            # ".*_knee_joint": 0.42,
+            # ".*_ankle_pitch_joint": -0.23,
+            # ".*_elbow_joint": 0.0,
+            # "left_shoulder_roll_joint": 0.16,
+            # "left_shoulder_pitch_joint": -0.35,
+            # "right_shoulder_roll_joint": -0.16,
+            # "right_shoulder_pitch_joint": -0.35,
+
+             ".*_hip_pitch_joint": -0.20,
             ".*_knee_joint": 0.42,
             ".*_ankle_pitch_joint": -0.23,
-            ".*_elbow_joint": 0.0,
+            ".*_elbow_joint": 0.87,
             "left_shoulder_roll_joint": 0.16,
-            "left_shoulder_pitch_joint": -0.35,
+            "left_shoulder_pitch_joint": 0.35,
             "right_shoulder_roll_joint": -0.16,
-            "right_shoulder_pitch_joint": -0.35,
+            "right_shoulder_pitch_joint": 0.35,
+
         },
         joint_vel={".*": 0.0},
     ),
