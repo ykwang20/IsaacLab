@@ -405,7 +405,7 @@ G1_MINIMAL_CFG.spawn.usd_path = f"{ISAACLAB_NUCLEUS_DIR}/Robots/Unitree/G1/g1_mi
 
 G1_MIN_NOHAND_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path="/home/legrobot/IsaacLab/source/asset/g1/g1_min_nohand.usd",
+        usd_path="/source/asset/g1/g1_min_nohand.usd",
 
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
@@ -963,4 +963,6 @@ G1_29_MODIFIED_CFG = ArticulationCfg(
         ),
     },
 )
+G1_29_MODIFIED_MIN_CFG= G1_29_MODIFIED_CFG.copy()
+G1_29_MODIFIED_MIN_CFG.spawn.usd_path = "source/asset/g1/g1_29dof_modified_new_minimal.usd"
 

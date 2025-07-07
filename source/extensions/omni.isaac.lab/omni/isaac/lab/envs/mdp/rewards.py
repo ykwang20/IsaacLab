@@ -19,6 +19,8 @@ from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.managers.manager_base import ManagerTermBase
 from omni.isaac.lab.managers.manager_term_cfg import RewardTermCfg
 from omni.isaac.lab.sensors import ContactSensor, RayCaster
+import omni.isaac.lab.utils.math as math_utils
+
 
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
@@ -106,7 +108,11 @@ def standing_flat_orientation(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg 
     climb_command = env.command_manager.get_command('climb_command')
 
     asset: RigidObject = env.scene[asset_cfg.name]
-    reward = torch.linalg.norm((asset.data.projected_gravity_b[:, :2]), dim=1)
+    quat = asset.data.root_link_quat_w
+    r,p,y=math_utils.euler_xyz_from_quat(quat)
+    #reward = torch.linalg.norm((asset.data.projected_gravity_b[:, :2]), dim=1)
+    reward = torch.square(r) + torch.square(p)
+    reward = torch.exp(-5 * reward)  # Exponential kernel to penalize deviations from the desired height``
     return torch.where(climb_command > 0, torch.zeros_like(reward), reward)
 
 
@@ -224,6 +230,7 @@ def standing_joint_deviation(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg =
     # extract the used quantities (to enable type-hinting)
     climb_command = env.command_manager.get_command('climb_command')
     asset: Articulation = env.scene[asset_cfg.name]
+    #print('joint names:', asset.data.joint_names)
     # compute out of limits constraints
     angle = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
     reward = torch.sum(torch.square(angle), dim=1)
