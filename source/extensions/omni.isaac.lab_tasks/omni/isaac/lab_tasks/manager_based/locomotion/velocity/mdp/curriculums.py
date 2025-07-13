@@ -152,6 +152,23 @@ def terrain_levels_height(
     # return the mean terrain level
     return torch.mean(terrain.terrain_levels.float())
 
+def modify_push_vel(env: ManagerBasedRLEnv, env_ids: Sequence[int], vel_min: float, vel_max: float, num_steps: int):
+    """Curriculum that modifies a reward weight a given number of steps.
+
+    Args:
+        env: The learning environment.
+        env_ids: Not used since all environments are affected.
+        term_name: The name of the reward term.
+        weight: The weight of the reward term.
+        num_steps: The number of steps after which the change should be applied.
+    """
+    if env.common_step_counter > num_steps:
+        # obtain term settings
+        term_cfg = env.event_manager.get_term_cfg('push_robot')
+        # update term settings
+        term_cfg.params = {"velocity_range": {"x": (vel_min, vel_max), "y": (vel_min, vel_max)}}
+        env.event_manager.set_term_cfg('push_robot', term_cfg)
+
 def gravity_annealing(
     env: ManagerBasedRLEnv, env_ids: Sequence[int], min_gravity_ratio: float=0.3, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:

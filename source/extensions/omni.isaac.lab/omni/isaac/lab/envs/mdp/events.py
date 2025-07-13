@@ -633,6 +633,44 @@ def push_by_setting_velocity(
     # set the velocities into the physics simulation
     asset.write_root_com_velocity_to_sim(vel_w, env_ids=env_ids)
 
+def push_by_adding_velocity(
+    env: ManagerBasedEnv,
+    env_ids: torch.Tensor,
+    velocity_range: dict[str, tuple[float, float]],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+):
+    """Push the asset by setting the root velocity to a random value within the given ranges.
+
+    This creates an effect similar to pushing the asset with a random impulse that changes the asset's velocity.
+    It samples the root velocity from the given ranges and sets the velocity into the physics simulation.
+
+    The function takes a dictionary of velocity ranges for each axis and rotation. The keys of the dictionary
+    are ``x``, ``y``, ``z``, ``roll``, ``pitch``, and ``yaw``. The values are tuples of the form ``(min, max)``.
+    If the dictionary does not contain a key, the velocity is set to zero for that axis.
+    """
+
+    # write a code: if the velocity range is zero for all axes, then we don't change the velocity and print a warning
+    if all(velocity_range.get(key, (0.0, 0.0)) == (0.0, 0.0) for key in ["x", "y", "z", "roll", "pitch", "yaw"]):
+        #print("Warning: push_by_adding_velocity called with zero velocity range for all axes, no change in velocity applied.")
+        return
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject | Articulation = env.scene[asset_cfg.name]
+
+    # velocities
+    vel_w = asset.data.root_com_vel_w[env_ids]
+    # sample random velocities
+    range_list = [velocity_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z", "roll", "pitch", "yaw"]]
+    ranges = torch.tensor(range_list, device=asset.device)
+    delta_v = math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], vel_w.shape, device=asset.device)
+    # add it to the current velocity
+    vel_w += delta_v
+    #write a code that if delta_v is zero, then we don't change the velocity
+    # if torch.all(delta_v == 0):
+    #     print("Warning: push_by_adding_velocity called with zero velocity range, no change in velocity applied.")
+    #     return
+    # set the velocities into the physics simulation
+    asset.write_root_com_velocity_to_sim(vel_w, env_ids=env_ids)
+
 
 def reset_root_state_uniform(
     env: ManagerBasedEnv,

@@ -169,7 +169,8 @@ def downward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -
     # print('max_avg_height:',max_avg_height)
     climb_command = env.command_manager.get_command('climb_command')
     current_height = torch.mean(asset.data.body_pos_w[:, :, 2].clip(max=0.02), dim=1)
-    #print('current_height:',current_height)
+    
+    
     downward=max_avg_height-current_height
     success = torch.logical_and(asset.data.body_pos_w[:, :, 2].min(dim=1)[0] > 0.02, 
                                 asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0] > 1.6)
@@ -179,11 +180,23 @@ def downward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -
     # print('root pos:',asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0])
     penalty=torch.logical_or(downward>0 , downward.abs()<0.00001)
     penalty=penalty.logical_and(current_height<0.02)
+
+    min_dist_to_box = env.command_manager.get_term('climb_command').min_dist_to_box
+    current_dist_to_box = torch.abs(asset.data.body_pos_w[:, :, 2])
+    # if min_dist_to_box is not None:
+    #     dist_diff = current_dist_to_box - min_dist_to_box
+    #     closer = dist_diff.min(dim=1)[0] < 0
+    #     penalty=penalty.logical_and(~closer)
+    #     # input("Input Enter")
+    #     # print('curent dist to box:',current_dist_to_box)
+    #     # print('min dist to box:',min_dist_to_box)
+    #     # print('closer:',closer)
     # print('penalty:',penalty)   
     penalty=penalty.logical_and(~success)
     # print('penalty after:',penalty)
     #print('penalty:',penalty)
     env.command_manager.get_term('climb_command').update_max_avg_height(current_height)
+    env.command_manager.get_term('climb_command').update_min_dist_to_box(current_dist_to_box)
     reward = torch.where(penalty, torch.ones_like(downward), torch.zeros_like(downward))
     return torch.where(climb_command > 0, reward, torch.zeros_like(reward))
 
@@ -209,7 +222,8 @@ def com_backward_penalty(env, wall_x:float,asset_cfg: SceneEntityCfg = SceneEnti
 
     env.command_manager.get_term('climb_command').update_max_com_x(current_com_x)
     reward = torch.where(penalty, torch.ones_like(backward), torch.zeros_like(backward))
-    
+    if climb_command.any() > 0 :
+        print('climb command:',climb_command)
     return torch.where(climb_command > 0, reward, torch.zeros_like(reward))
 
 def wait_penalty(env, command_name: str,asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -482,9 +496,9 @@ def group_air_time(env: ManagerBasedRLEnv, upper_sensor_cfg: SceneEntityCfg, low
     air_time=torch.minimum(upper_lower_air_time, feet_air_time)
     climb_command = env.command_manager.get_command('climb_command')
     air_time=torch.where(climb_command > 0, air_time, torch.zeros_like(air_time))
-    if hasattr(env, "episode_length_buf"):
-        delay = (env.episode_length_buf * env.step_dt).unsqueeze(-1) < 1.5 & climb_command > 0
-        air_time = torch.where(delay, lower_air_time, air_time,)
+    # if hasattr(env, "episode_length_buf"):
+    #     delay = ((env.episode_length_buf * env.step_dt) < 1.5) & (climb_command > 0)
+    #     air_time = torch.where(delay, lower_air_time, air_time,)
     #air_time=torch.where(climb_command > 0, air_time, feet_air_time)
 
 

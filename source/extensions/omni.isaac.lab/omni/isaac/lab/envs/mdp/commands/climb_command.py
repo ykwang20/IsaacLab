@@ -66,10 +66,12 @@ class ClimbCommand(CommandTerm):
         # obtain the robot asset
         # -- robot
         self.robot: Articulation = env.scene[cfg.asset_name]
+        num_bodies = self.robot.num_bodies
 
    
         self.climb_command = torch.zeros(self.num_envs, device=self.device)
-       
+
+        self.min_dist_to_box = None
         self.max_avg_height = torch.zeros(self.num_envs, device=self.device)
         self.max_com_x = torch.zeros(self.num_envs, device=self.device)
         self.mass = self.robot.root_physx_view.get_masses().clone().to(self.device)
@@ -121,7 +123,10 @@ class ClimbCommand(CommandTerm):
 
         # reset avg height of all rigid bodies
         self.max_avg_height[reset_env_ids] = torch.mean(self.robot.data.body_pos_w[reset_env_ids, :, 2].clip(max=0.02), dim=1)
-
+        if self.min_dist_to_box is None:
+            self.min_dist_to_box = torch.abs(self.robot.data.body_pos_w[:, :, 2]).clone()
+        else:
+            self.min_dist_to_box[reset_env_ids] = torch.abs(self.robot.data.body_pos_w[reset_env_ids, :, 2])
         body_coms = self.robot.data.body_pos_w[reset_env_ids, :, 0] - self._env.scene.env_origins[reset_env_ids, 0].unsqueeze(1)
         self.max_com_x[reset_env_ids] =  torch.sum(body_coms * self.mass[reset_env_ids], dim=1) / torch.sum(self.mass[reset_env_ids], dim=1)
 
@@ -133,6 +138,18 @@ class ClimbCommand(CommandTerm):
         """
         # update the max height
         self.max_com_x = torch.max(self.max_com_x, current_com,)
+    
+    def update_min_dist_to_box(self, current_dist: torch.Tensor):
+        """Update the minimum distance to the box in the environment.
+
+        Args:
+            env_ids: The indices of the environments to update.
+        """
+        # update the min distance
+        if self.min_dist_to_box is None:
+            self.min_dist_to_box = current_dist.clone()
+        else:      
+            self.min_dist_to_box = torch.min(self.min_dist_to_box, current_dist,)
 
     def update_max_avg_height(self, current_avg: torch.Tensor):
         """Update the average height of the robot in the environment.

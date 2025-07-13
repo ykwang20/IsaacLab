@@ -126,6 +126,7 @@ def main():
         with torch.inference_mode():
             # agent stepping
             actions = policy(obs)
+            #actions = torch.zeros_like(actions) 
             # env stepping
             obs, rew, _, extra = env.step(actions)
             episode += 1

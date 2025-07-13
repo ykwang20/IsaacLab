@@ -20,6 +20,8 @@ from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+from omni.isaac.lab.markers.config import  FRAME_MARKER_CFG
+
 
 import omni.isaac.lab_tasks.manager_based.manipulation.reach.mdp as mdp
 
@@ -81,6 +83,32 @@ class CommandsCfg:
         ),
     )
 
+    avoidance_pose = mdp.UniformPoseCommandCfg(
+        asset_name="robot",
+        body_name="ee_link",
+        resampling_time_range=(4.0, 4.0),
+        debug_vis=True,
+        ranges=mdp.UniformPoseCommandCfg.Ranges(
+            pos_x=(0.35, 0.9),
+            pos_y=(-0.6, 0.6),
+            pos_z=(-0.15, 0.7),
+            roll=(0.0, 0.0),
+            pitch=(0.0, 0.0),  # depends on end-effector axis
+            yaw=(-3.14, 3.14),
+        ),
+        goal_pose_visualizer_cfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/Command/avoidance_pose",markers={
+        "avoidance": sim_utils.SphereCfg(
+            radius=0.05,
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0)),
+        ),}),
+
+        current_pose_visualizer_cfg = FRAME_MARKER_CFG.replace(markers={
+        "avoidance": sim_utils.SphereCfg(
+            radius=0.0,
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0)),
+        ),},
+            prim_path="/Visuals/Command/null"
+        ),)
 
 @configclass
 class ActionsCfg:

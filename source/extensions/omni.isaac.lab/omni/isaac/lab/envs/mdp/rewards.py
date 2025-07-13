@@ -108,10 +108,15 @@ def standing_flat_orientation(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg 
     climb_command = env.command_manager.get_command('climb_command')
 
     asset: RigidObject = env.scene[asset_cfg.name]
-    quat = asset.data.root_link_quat_w
-    r,p,y=math_utils.euler_xyz_from_quat(quat)
-    #reward = torch.linalg.norm((asset.data.projected_gravity_b[:, :2]), dim=1)
-    reward = torch.square(r) + torch.square(p)
+    # quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze(1)  
+    # r,p,y=math_utils.euler_xyz_from_quat(quat)
+    # r = torch.where(r>torch.pi, r-torch.pi*2, r)
+    # p = torch.where(p>torch.pi, p-torch.pi*2, p)
+    # y = torch.where(y>torch.pi, y-torch.pi*2, y)
+    # input("Input Enter")
+    # print('r:', r, 'p:', p, 'y:', y)
+    reward = torch.sum(torch.square(asset.data.projected_gravity_b[:, :2]), dim=1)
+    # reward = torch.square(r) + torch.square(p)
     reward = torch.exp(-5 * reward)  # Exponential kernel to penalize deviations from the desired height``
     return torch.where(climb_command > 0, torch.zeros_like(reward), reward)
 
@@ -162,8 +167,9 @@ def joint_torques_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
     # for i in range(len(asset.data.applied_torque[0])):
-        
-    #print("joint names:", asset.data.joint_names, asset_cfg.joint_names," joint ids:", asset_cfg.joint_ids)
+    #input("Input Enter")
+    # print("joint names:", asset.data.joint_names, asset_cfg.joint_names," joint ids:", asset_cfg.joint_ids)
+    # print("applied torque:", asset.data.applied_torque[:, asset_cfg.joint_ids[:23]])
     return torch.sum(torch.square(asset.data.applied_torque[:, asset_cfg.joint_ids[:23]]), dim=1)
 
 
@@ -186,8 +192,10 @@ def joint_vel_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntity
     max_id=torch.max(asset.data.joint_vel[:, asset_cfg.joint_ids],dim=-1)[1]
     # print('max id:', max_id)
     # print('max joint id:', asset.data.joint_names[max_id])
-
-    return torch.sum(torch.square(asset.data.joint_vel[:, asset_cfg.joint_ids[0:23]]), dim=1)
+    if (asset.data.joint_vel.shape[-1]) == 29:
+        return torch.sum(torch.square(asset.data.joint_vel[:, asset_cfg.joint_ids[0:23]]), dim=1)
+    else:
+        return torch.sum(torch.square(asset.data.joint_vel[:, asset_cfg.joint_ids]), dim=1)
 
 def joint_vel_exp(env: ManagerBasedRLEnv, grad_scale: float, threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     asset: Articulation = env.scene[asset_cfg.name]
@@ -232,6 +240,7 @@ def standing_joint_deviation(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg =
     asset: Articulation = env.scene[asset_cfg.name]
     #print('joint names:', asset.data.joint_names)
     # compute out of limits constraints
+    #input("Input Enter")
     angle = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
     reward = torch.sum(torch.square(angle), dim=1)
     reward = torch.exp(-0.1 * reward)  # Exponential kernel to penalize deviations from the default joint position
@@ -260,7 +269,18 @@ def joint_pos_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     out_of_limits += (
         asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.soft_joint_pos_limits[:, asset_cfg.joint_ids, 1]
     ).clip(min=0.0)
-    return torch.sum(out_of_limits, dim=1)
+
+    # joint_names = asset.joint_names
+    # violation_mask = out_of_limits > 0  # shape: [num_envs, num_joints]
+
+    # for env_id in range(violation_mask.shape[0]):
+    #     violated_names = [joint_names[j] for j in range(len(joint_names)) if violation_mask[env_id, j]]
+    #     if violated_names:
+    #         print(f"[Env {env_id}] Joint limits violated: {violated_names}")
+    penalty = torch.sum(out_of_limits, dim=1)
+    climb_command = env.command_manager.get_command('climb_command')
+    return torch.where(climb_command > 0, penalty, 10*penalty)  # penalize more when climbing
+    #return torch.sum(out_of_limits, dim=1)
 
 
 def joint_vel_limits(
@@ -438,7 +458,7 @@ def body_slipping(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, asset_cfg:
     # check if contact force is above threshold
     is_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > 1.
     # compute the dragging condition
-    vel_norm = torch.norm(asset.data.body_lin_vel_w[:,:,:2], dim=-1) 
+    vel_norm = torch.norm(asset.data.body_lin_vel_w[:,:,:3], dim=-1) 
     penalty = torch.where(is_contact, vel_norm, torch.zeros_like(vel_norm))
     # input("Input Enter")
     # print("slippig penalty: ", penalty)

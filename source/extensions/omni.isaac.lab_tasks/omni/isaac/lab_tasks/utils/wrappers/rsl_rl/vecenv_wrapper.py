@@ -71,7 +71,8 @@ class RslRlVecEnvWrapper(VecEnv):
             self.num_actions = self.unwrapped.action_manager.total_action_dim
         else:
             self.num_actions = gym.spaces.flatdim(self.unwrapped.single_action_space)
-        self.num_actions = 23
+        if self.num_actions == 29:
+            self.num_actions = 23
         if hasattr(self.unwrapped, "observation_manager"):
             self.num_obs = self.unwrapped.observation_manager.group_obs_dim["policy"][0]
         else:

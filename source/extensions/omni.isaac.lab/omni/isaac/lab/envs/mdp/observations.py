@@ -326,6 +326,8 @@ def imu_lin_acc(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg
     return asset.data.lin_acc_b
 
 def box_height(env: ManagerBasedEnv) -> torch.Tensor:
+    # climb_command = env.command_manager.get_command('climb_command')
+    # return torch.where(climb_command>0, 0-env.scene.env_origins[:, 2], torch.zeros(env.num_envs,1, device=env.device))
     return (0-env.scene.env_origins[:, 2]).unsqueeze(-1)
 
 def climb_command(env: ManagerBasedEnv) -> torch.Tensor:
@@ -350,6 +352,8 @@ def body_mass(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("
 def time(env: ManagerBasedEnv) -> torch.Tensor:
     if hasattr(env, "episode_length_buf"):
         #print('time:', env.episode_length_buf* env.step_dt)
+        climb_command = env.command_manager.get_command('climb_command')
+        #return torch.where((climb_command>0).unsqueeze(-1),torch.zeros(env.num_envs, 1,device=env.device),(env.episode_length_buf * env.step_dt).unsqueeze(-1))
         return (env.episode_length_buf * env.step_dt).unsqueeze(-1)
     else:
         return torch.zeros(env.num_envs,1, device=env.device)
