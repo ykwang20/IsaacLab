@@ -163,6 +163,7 @@ class G1TargetPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 @configclass
 class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    class_name ="OnPolicyRunnerLip"
     num_steps_per_env = 24
     max_iterations =8000#3000
     save_interval = 10#50
@@ -175,6 +176,8 @@ class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
+        class_name="PPOLIP",
+        grad_penalty_coef=0,#0.002,
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,

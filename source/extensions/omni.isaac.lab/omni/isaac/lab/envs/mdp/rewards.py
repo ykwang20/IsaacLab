@@ -113,8 +113,9 @@ def standing_flat_orientation(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg 
     # r = torch.where(r>torch.pi, r-torch.pi*2, r)
     # p = torch.where(p>torch.pi, p-torch.pi*2, p)
     # y = torch.where(y>torch.pi, y-torch.pi*2, y)
-    # input("Input Enter")
+    #input("Input Enter")
     # print('r:', r, 'p:', p, 'y:', y)
+    #print('foot height:', asset.data.body_link_pos_w[:, asset_cfg.body_ids]-env.scene.env_origins)
     reward = torch.sum(torch.square(asset.data.projected_gravity_b[:, :2]), dim=1)
     # reward = torch.square(r) + torch.square(p)
     reward = torch.exp(-5 * reward)  # Exponential kernel to penalize deviations from the desired height``
@@ -277,10 +278,10 @@ def joint_pos_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     #     violated_names = [joint_names[j] for j in range(len(joint_names)) if violation_mask[env_id, j]]
     #     if violated_names:
     #         print(f"[Env {env_id}] Joint limits violated: {violated_names}")
-    penalty = torch.sum(out_of_limits, dim=1)
-    climb_command = env.command_manager.get_command('climb_command')
-    return torch.where(climb_command > 0, penalty, 10*penalty)  # penalize more when climbing
-    #return torch.sum(out_of_limits, dim=1)
+    # penalty = torch.sum(out_of_limits, dim=1)
+    # climb_command = env.command_manager.get_command('climb_command')
+    # return torch.where(climb_command > 0, penalty, 10*penalty)  # penalize more when climbing
+    return torch.sum(out_of_limits, dim=1)
 
 
 def joint_vel_limits(

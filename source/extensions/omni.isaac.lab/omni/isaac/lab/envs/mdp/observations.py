@@ -138,6 +138,7 @@ def root_ang_vel_w(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntity
     """Asset root angular velocity in the environment frame."""
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject = env.scene[asset_cfg.name]
+    
     return asset.data.root_com_ang_vel_w
 
 def height_fail(

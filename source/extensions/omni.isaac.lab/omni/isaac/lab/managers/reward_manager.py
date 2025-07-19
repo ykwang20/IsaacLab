@@ -139,6 +139,7 @@ class RewardManager(ManagerBase):
         """
         # reset computation
         self._reward_buf[:] = 0.0
+        #print('reward_buf',self._reward_buf.shape)
         # iterate over all the reward terms
         for name, term_cfg in zip(self._term_names, self._term_cfgs):
             # skip if weight is zero (kind of a micro-optimization)
@@ -147,7 +148,10 @@ class RewardManager(ManagerBase):
             # compute term's value
             value = term_cfg.func(self._env, **term_cfg.params) * term_cfg.weight * dt
             # update total reward
+            print('reward_buf',self._reward_buf.shape)
+            print(f"Reward term '{name}': {value}")
             self._reward_buf += value
+            
             # update episodic sum
             self._episode_sums[name] += value
 

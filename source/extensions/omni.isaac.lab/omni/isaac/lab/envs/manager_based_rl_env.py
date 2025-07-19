@@ -87,6 +87,7 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
                     self.curiosity_handler = RNDCuriosity(cfg, self.device)
         # store the render mode
         self.render_mode = render_mode
+        
 
         # initialize data and constants
         # -- counter for curriculum

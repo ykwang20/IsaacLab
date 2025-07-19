@@ -76,6 +76,7 @@ class JointAction(ActionTerm):
         self._raw_actions = torch.zeros(self.num_envs, self.action_dim, device=self.device)
         self._processed_actions = torch.zeros_like(self.raw_actions)
         self.last_processed_actions = torch.zeros_like(self.raw_actions)
+        
 
         # parse scale
         if isinstance(cfg.scale, (float, int)):

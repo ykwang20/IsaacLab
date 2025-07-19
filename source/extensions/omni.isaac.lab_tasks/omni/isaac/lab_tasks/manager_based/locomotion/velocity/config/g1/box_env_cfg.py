@@ -25,7 +25,7 @@ from omni.isaac.lab_tasks.manager_based.locomotion.velocity.velocity_env_cfg imp
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG, G1_29_CFG,G1_29_MINIMAL_CFG,G1_29_MODIFIED_CFG,G1_29_MODIFIED_MIN_CFG,G1_29_ANNEAL_23_CFG,G1_29_ANNEAL_23_MODIFIED_CFG # isort: skip
+from omni.isaac.lab_assets import G1_MINIMAL_CFG, G1_CFG, G1_29_CFG,G1_29_MINIMAL_CFG,G1_29_MODIFIED_CFG,G1_29_MODIFIED_MIN_CFG,G1_29_ANNEAL_23_CFG,G1_29_ANNEAL_23_MODIFIED_CFG , G1_29_MODIFIED_714_CFG# isort: skip
 import omni.isaac.lab.terrains as terrain_gen
 import math
 import random
@@ -40,29 +40,35 @@ class G1Rewards:
     #                              params={"command_name": "target_pos_e","start_time": 0})
     # position_tracking_cos = RewTerm(func=mdp.position_tracking_cos, weight=20.,
     #                               params={"command_name": "target_pos_e","start_time": 1})
-    standing_joint = RewTerm(func=mdp.standing_joint_deviation, weight=0.5,#-0.005,
-                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})#[".*shoulder.*",".*elbow.*",".*wrist.*"])})
-    standing_orientation = RewTerm(func=mdp.standing_flat_orientation, weight=0.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
-    standing_lin_vel = RewTerm(func=mdp.standing_lin_vel, weight=0.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
-    standing_ang_vel = RewTerm(func=mdp.standing_ang_vel, weight=0.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
-    standing_height = RewTerm(func=mdp.standing_height_l2, weight=0.5,params={"desired_height":0.75})
-    # standing_joint = RewTerm(func=mdp.standing_joint_deviation, weight=2,#-0.005,
+    # standing_joint = RewTerm(func=mdp.standing_joint_deviation, weight=0.5,#-0.005,
     #                          params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})#[".*shoulder.*",".*elbow.*",".*wrist.*"])})
-    # standing_orientation = RewTerm(func=mdp.standing_flat_orientation, weight=2,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
-    # standing_lin_vel = RewTerm(func=mdp.standing_lin_vel, weight=2,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
-    # standing_ang_vel = RewTerm(func=mdp.standing_ang_vel, weight=2,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
-    # standing_height = RewTerm(func=mdp.standing_height_l2, weight=1,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),"desired_height":0.74})
+    # standing_orientation = RewTerm(func=mdp.standing_flat_orientation, weight=0.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
+    # standing_lin_vel = RewTerm(func=mdp.standing_lin_vel, weight=0.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
+    # standing_ang_vel = RewTerm(func=mdp.standing_ang_vel, weight=0.5,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
+    # standing_height = RewTerm(func=mdp.standing_height_l2, weight=0.5,params={"desired_height":0.78})
+    standing_joint = RewTerm(func=mdp.standing_joint_deviation, weight=2,#-0.005,
+                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})#[".*shoulder.*",".*elbow.*",".*wrist.*"])})
+    standing_orientation = RewTerm(func=mdp.standing_flat_orientation, weight=2,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
+    standing_lin_vel = RewTerm(func=mdp.standing_lin_vel, weight=2,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
+    standing_ang_vel = RewTerm(func=mdp.standing_ang_vel, weight=2,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
+    standing_height = RewTerm(func=mdp.standing_height_l2, weight=1,params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),"desired_height":0.78})
 
-    downward_penalty = RewTerm(func=mdp.downward_penalty, weight=-4)
-    backward_penalty = RewTerm(func=mdp.com_backward_penalty, weight=-2, params={"wall_x" :1.5})
+    downward_penalty = RewTerm(func=mdp.downward_penalty, weight=-4, params={"asset_cfg" :SceneEntityCfg("robot", body_names=[".*wrist.*", ".*elbow_link", "head_link"]),})
+    backward_penalty = RewTerm(func=mdp.com_backward_penalty, weight=-2, params={"wall_x" :1.5})#-2
+    # downward_penalty = RewTerm(func=mdp.downward_to_torso_penalty, weight=-4, params={"asset_cfg" :SceneEntityCfg("robot", body_names=[".*hip.*", ".*knee.*", ".*ankle.*"]),
+    #                                                                          "torso_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),})
+    #down_and_back_penalty = RewTerm(func=mdp.down_and_back_penalty, weight = -6, params={"wall_x":1.5})
     alive_reward=RewTerm(func=mdp.is_alive, weight=9)
-    wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-1,params={"command_name": "target_pos_e"}) #weight=-2
+    wait_penalty = RewTerm(func=mdp.wait_penalty, weight=-1,params={"command_name": "target_pos_e"}) #weight=-1
     #move_in_direction = RewTerm(func=mdp.move_in_direction, weight=5.0,params={"command_name": "target_pos_e"})
     #move_in_direction = RewTerm(func=mdp.move_in_direction, weight=1.0,params={"command_name": "target_pos_e"})
     #termination_penalty = RewTerm(func=mdp.contact_terminated, weight=-200.0)
 
 
     # Contact penalties
+    pressure_penalty=RewTerm(func=mdp.body_pressure, weight = -1, params = {"asset_cfg" :SceneEntityCfg("robot", body_names=[".*_ankle_roll_link"]),
+                                                                            "sensor_cfg": SceneEntityCfg("bodies_ground_contact",
+                                                                            body_names=[ ".*_ankle_roll_link"]),})
     contact_on_wall_penalty = RewTerm(func=mdp.contact_on_wall, weight=-1,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*"]), 
                                       "wall_x": 1.5})
     contact_exp_penalty=RewTerm(func=mdp.contact_forces_exp, weight=-1,
@@ -107,7 +113,7 @@ class G1Rewards:
     #                         params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])})
     # wrist_deviation_exp=RewTerm(func=mdp.joint_deviation_exp, weight=-1.,
     #                             params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*wrist.*"]), "scale": 10, "threshold": 0.5})
-    joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-1,)
+    joint_pos_limits =RewTerm(func=mdp.joint_pos_limits, weight=-10,)#-1,)
     #joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.0001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
     joint_vel_penalty=RewTerm(func=mdp.joint_vel_l2, weight=-0.001,params={"asset_cfg" :SceneEntityCfg("robot", joint_names=[".*"])} )
 
@@ -158,7 +164,7 @@ class ClimbCommandsCfg:
     climb_command = mdp.ClimbCommandCfg(
         activated=True,
         asset_name="robot",
-        resampling_time_range=(10.5, 10.5),
+        resampling_time_range=(1., 1.),
         debug_vis=False,
     )
 
@@ -188,10 +194,10 @@ class TerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     height_low = DoneTerm(func=mdp.root_height_below_minimum, params={'minimum_height':0.45})
     #TODO: only for standing
-    base_contact = DoneTerm(
-        func=mdp.standing_illegal_contact,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["torso_link",".*hip.*"]), "threshold": 1.0},     
-    )
+    # base_contact = DoneTerm(
+    #     func=mdp.standing_illegal_contact,
+    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["torso_link",".*hip.*"]), "threshold": 1.0},     
+    # )
     # success = DoneTerm(func=mdp.stepped_on,params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"), "threshold": 1.0,
     #                   "platform_width": 3,"reached_distance": 0.06,} )
     # max_consecutive_success = DoneTerm(
@@ -215,8 +221,8 @@ BOX_AND_PIT_CFG = terrain_gen.TerrainGeneratorCfg(
     slope_threshold=0.75,
     use_cache=False,
     sub_terrains={
-        #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.55, 0.9), platform_width=3),
-        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0., 0.), platform_width=3),
+        "pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0.55, 0.9), platform_width=3),
+        #"pit": terrain_gen.MeshPitTerrainCfg(proportion=1., pit_depth_range=(0., 0.), platform_width=3),
     },
     )
 
@@ -233,7 +239,7 @@ class ObservationsCfg:
         # base_lin_vel = ObsTerm(func=mdp.base_lin_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
         # base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.01, n_max=0.01))
 
-        # root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
+        #root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
         # root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
 
         torso_lin_vel = ObsTerm(func=mdp.body_lin_vel_w, params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),},noise=Unoise(n_min=-0.2, n_max=0.2))
@@ -249,7 +255,7 @@ class ObservationsCfg:
 
         torso_quat = ObsTerm(func=mdp.body_quat_w, params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]), "make_quat_unique":True},
                             noise=EulerNoise(n_min=[-0.05,-0.05,-0.05], n_max=[0.05,0.05,0.05]))
-        #torso_pos = ObsTerm(func=mdp.body_pos_w, params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),}, noise=Unoise(n_min=-0.01, n_max=0.01))  
+        torso_pos = ObsTerm(func=mdp.body_pos_w, params={"asset_cfg" :SceneEntityCfg("robot", body_names=["torso_link"]),}, noise=Unoise(n_min=-0.01, n_max=0.01))  
         #target_commands = ObsTerm(func=mdp.target_pos_root_frame, params={"command_name": "target_pos_e"})
         #target_commands = ObsTerm(func=mdp.target_pos_w, params={"command_name": "target_pos_e"})
         #velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
@@ -257,10 +263,10 @@ class ObservationsCfg:
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-1.5, n_max=1.5))
         actions = ObsTerm(func=mdp.last_processed_action,params={"action_name":"joint_pos"})
         box_height = ObsTerm(func=mdp.box_height, noise=Unoise(n_min=-0.01, n_max=0.01))
-        #climb_command = ObsTerm(func=mdp.climb_command)
+        climb_command = ObsTerm(func=mdp.climb_command)
         #trunk_mass = ObsTerm(func=mdp.body_mass, params={"asset_cfg": SceneEntityCfg("robot", body_names=["torso_link"])})
 
-        #time = ObsTerm(func=mdp.time)
+        time = ObsTerm(func=mdp.time)
         # height_scan = ObsTerm(
         #     func=mdp.height_scan,
         #     params={"sensor_cfg": SceneEntityCfg("height_scanner")},
@@ -315,7 +321,7 @@ class HeightCurriculumCfg:
 
     terrain_levels = CurrTerm(func=mdp.terrain_levels_height, 
                               params={"update_prob": 0.8})
-    push_vel = CurrTerm(func=mdp.modify_push_vel, params={"vel_min": -0.5, "vel_max": 0.5, "num_steps": 24000})
+    #push_vel = CurrTerm(func=mdp.modify_push_vel, params={"vel_min": -0.5, "vel_max": 0.5, "num_steps": 24000})
     
 @configclass
 class CurriculumCfg:
@@ -359,7 +365,7 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         # Scene
         #self.curiosity=True
         #self.scene.robot = G1_29_ANNEAL_23_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene.robot = G1_29_MODIFIED_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = G1_29_MODIFIED_714_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         #self.scene.robot = G1_29_MODIFIED_MIN_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.robot.spawn.articulation_props.enabled_self_collisions =True#False
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
@@ -370,11 +376,11 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
         #self.scene.height_scanner.pattern_cfg=patterns.GridPatternCfg(resolution=0.2, size=[1.6, 1.0])
        
         super().__post_init__()
-        self.episode_length_s =10#7#7.5#10#20
+        self.episode_length_s =7#7.5#10#20
         # Randomization
 
-        self.events.push_robot.interval_range_s=(4.,6.) #= None
-        self.events.push_robot.params={"velocity_range": {"x": (-0., 0.), "y": (-0., 0.)}}
+        # self.events.push_robot.interval_range_s=(4.,6.) #= None
+        # self.events.push_robot.params={"velocity_range": {"x": (-0., 0.), "y": (-0., 0.)}}
 
         self.events.add_base_mass.params={
             "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
@@ -391,14 +397,14 @@ class G1BoxEnvCfg(LocomotionVelocityRoughEnvCfg):
             "num_buckets": 64,
         }
 
-        #self.events.push_robot= None
+        self.events.push_robot= None
         #self.events.add_base_mass= None
 
 
         self.events.reset_robot_joints.params["position_range"] = (0.85, 1.15)
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
         self.events.reset_base.params = {
-            "pose_range": {"x": (1.25, 1.3), "y": (-0.6, 0.6),"z":(0.03,0.03),"yaw": (-math.pi/6, math.pi/6)},#"yaw": (math.pi, math.pi)},
+            "pose_range": {"x": (1.25, 1.3), "y": (-0.6, 0.6),"z":(0.0,0.0),"yaw":(-math.pi/6, math.pi/6)},#"yaw": (math.pi, math.pi)},
             #"pose_range": {"x": (0.35, 0.35), "y": (-1.2, 1.2),"z":(0.03,0.03), "yaw": (0, 0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -431,7 +437,7 @@ class G1BoxEnvCfg_Play(G1BoxEnvCfg):
 
         self.scene.num_envs = 10
         self.scene.env_spacing = 2.5
-        self.episode_length_s =10.0
+        self.episode_length_s =5
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
         # reduce the number of terrains to save memory

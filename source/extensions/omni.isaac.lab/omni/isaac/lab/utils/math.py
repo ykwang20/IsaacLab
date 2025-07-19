@@ -18,6 +18,36 @@ from typing import Literal
 General
 """
 
+@torch.jit.script
+def _R_from_quat_batch(q: torch.Tensor) -> torch.Tensor:
+    """
+    q : (...,4)  [w, x, y, z]，可非单位；返回 (...,3,3)
+    公式按右手坐标系、列向量形式推导
+    """
+    w, x, y, z = q.unbind(-1)
+
+    # 归一化（防止采样误差）
+    norm = torch.rsqrt(w*w + x*x + y*y + z*z + 1e-12)
+    w *= norm; x *= norm; y *= norm; z *= norm
+
+    # 复用中间项，减少乘法
+    xx, yy, zz = x*x, y*y, z*z
+    xy, xz, yz = x*y, x*z, y*z
+    wx, wy, wz = w*x, w*y, w*z
+
+    R = torch.empty(q.shape[:-1] + (3,3), dtype=q.dtype, device=q.device)
+    R[...,0,0] = 1 - 2*(yy + zz)
+    R[...,0,1] =     2*(xy - wz)
+    R[...,0,2] =     2*(xz + wy)
+
+    R[...,1,0] =     2*(xy + wz)
+    R[...,1,1] = 1 - 2*(xx + zz)
+    R[...,1,2] =     2*(yz - wx)
+
+    R[...,2,0] =     2*(xz - wy)
+    R[...,2,1] =     2*(yz + wx)
+    R[...,2,2] = 1 - 2*(xx + yy)
+    return R
 
 @torch.jit.script
 def scale_transform(x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:

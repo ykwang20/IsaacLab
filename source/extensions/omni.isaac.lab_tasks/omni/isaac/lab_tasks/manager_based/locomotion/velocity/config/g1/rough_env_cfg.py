@@ -409,8 +409,8 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         
         # Scene
         #self.scene.robot = G1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        #self.scene.robot = G1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene.robot = G1_MIN_NOHAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = G1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        #self.scene.robot = G1_MIN_NOHAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
         super().__post_init__()
         # Randomization

@@ -14,6 +14,7 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
 
 @configclass
 class UnitreeGo1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    class_name ="OnPolicyRunnerLip"
     num_steps_per_env = 24
     max_iterations = 1500
     save_interval = 50
@@ -26,6 +27,7 @@ class UnitreeGo1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
+        class_name="PPOLIP",
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,

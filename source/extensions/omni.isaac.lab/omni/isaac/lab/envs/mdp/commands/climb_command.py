@@ -73,6 +73,7 @@ class ClimbCommand(CommandTerm):
 
         self.min_dist_to_box = None
         self.max_avg_height = torch.zeros(self.num_envs, device=self.device)
+        #self.max_height_to_torso = -torch.ones(self.num_envs, device=self.device)
         self.max_com_x = torch.zeros(self.num_envs, device=self.device)
         self.mass = self.robot.root_physx_view.get_masses().clone().to(self.device)
 
@@ -123,6 +124,7 @@ class ClimbCommand(CommandTerm):
 
         # reset avg height of all rigid bodies
         self.max_avg_height[reset_env_ids] = torch.mean(self.robot.data.body_pos_w[reset_env_ids, :, 2].clip(max=0.02), dim=1)
+        #self.max_height_to_torso[reset_env_ids] = -1
         if self.min_dist_to_box is None:
             self.min_dist_to_box = torch.abs(self.robot.data.body_pos_w[:, :, 2]).clone()
         else:
@@ -159,6 +161,16 @@ class ClimbCommand(CommandTerm):
         """
         # update the max height
         self.max_avg_height = torch.max(self.max_avg_height, current_avg,)
+
+    # def update_max_height_to_torso(self, current_avg: torch.Tensor):
+    #     """Update the average height of the robot in the environment.
+
+    #     Args:
+    #         env_ids: The indices of the environments to update.
+    #     """
+    #     # update the max height
+    #     self.max_height_to_torso = torch.max(self.max_height_to_torso, current_avg,)
+
     
 
     def _update_command(self):

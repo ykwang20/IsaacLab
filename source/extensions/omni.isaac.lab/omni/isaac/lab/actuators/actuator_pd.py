@@ -84,6 +84,7 @@ class ImplicitActuator(ActuatorBase):
         self.computed_effort = self.stiffness * error_pos + self.damping * error_vel + control_action.joint_efforts
         # clip the torques based on the motor limits
         self.applied_effort = self._clip_effort(self.computed_effort)
+        
         return control_action
 
 
@@ -138,6 +139,7 @@ class IdealPDActuator(ActuatorBase):
         self.computed_effort = self.stiffness * error_pos + self.damping * error_vel + control_action.joint_efforts
         # clip the torques based on the motor limits
         self.applied_effort = self._clip_effort(self.computed_effort)
+        #self.applied_effort = torch.zeros_like(self.applied_effort)  # PhysX does not provide torques for implicit actuators
         # set the computed actions back into the control action
         control_action.joint_efforts = self.applied_effort
         control_action.joint_positions = None
