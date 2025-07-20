@@ -148,8 +148,8 @@ class RewardManager(ManagerBase):
             # compute term's value
             value = term_cfg.func(self._env, **term_cfg.params) * term_cfg.weight * dt
             # update total reward
-            print('reward_buf',self._reward_buf.shape)
-            print(f"Reward term '{name}': {value}")
+            # print('reward_buf',self._reward_buf.shape)
+            # print(f"Reward term '{name}': {value}")
             self._reward_buf += value
             
             # update episodic sum

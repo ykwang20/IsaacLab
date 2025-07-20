@@ -186,9 +186,9 @@ def downward_penalty(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -
     
     #print('lowest height:',asset.data.body_pos_w[:, :, 2].min(dim=1)[0])
     # print('root pos:',asset.data.root_pos_w[:, 0] - env.scene.env_origins[:,0])
-    # penalty=torch.logical_or(downward>0 , downward.abs()<0.00001)
-    # penalty=penalty.logical_and(current_height<0.02)
-    penalty=downward>0
+    penalty=torch.logical_or(downward>0 , downward.abs()<0.00001)
+    penalty=penalty.logical_and(current_height<0.02)
+    #penalty=downward>0
 
     min_dist_to_box = env.command_manager.get_term('climb_command').min_dist_to_box
     current_dist_to_box = torch.abs(asset.data.body_pos_w[:, :, 2])
@@ -862,8 +862,7 @@ def body_pressure(env: ManagerBasedRLEnv, asset_cfg, sensor_cfg,Lx: float = 0.20
 
 
     quat = asset.data.body_quat_w[:,asset_cfg.body_ids]
-    O_world = asset.data.body_pos_w[:,asset_cfg.body_ids]-env.scene.env_origins
-    
+    O_world = asset.data.body_pos_w[:,asset_cfg.body_ids]-env.scene.env_origins.unsqueeze(1)  # (n,k,3)  
     n, k, _ = O_world.shape
     B       = n * k
     dev     = env.device
@@ -923,7 +922,7 @@ def body_pressure(env: ManagerBasedRLEnv, asset_cfg, sensor_cfg,Lx: float = 0.20
     m      = mask_sorted.sum(dim=1)                       # (B,)
     m_max  = int(m.max().item())
     if m_max == 0:
-        return torch.zeros(n, device=areas.device, dtype=areas.dtype)
+        return torch.zeros(n, device=dev, dtype=dt)
 
     # 取前 m_max 个位置的坐标 (不足 m_max 的行后面是无效点，但我们会屏蔽)
     pts_m  = pts_sorted[:, :m_max, :]                     # (B, m_max, 2)
@@ -950,12 +949,16 @@ def body_pressure(env: ManagerBasedRLEnv, asset_cfg, sensor_cfg,Lx: float = 0.20
     areas[m < 3] = 0.   # 少于3点无面积
 
     #input("Input Enter")
-    print('area:', areas.view(n,k))
+    #print('area:', areas.view(n,k))
     area = areas.view(n,k)
-    net_contact_forces = contact_sensor.data.net_forces_w_history
-    max_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0]
-    print('max_contact:',max_contact)
-    pressure=torch.where(max_contact>0.1,max_contact/area,0)
-    print('pressure:',pressure)
-    print('max pressure:',torch.max(pressure,dim=1).values)
-    return torch.max(pressure,dim=1).values   # (n,)
+    net_contact_forces = contact_sensor.data.net_forces_w
+    max_contact = torch.norm(net_contact_forces[:,  sensor_cfg.body_ids], dim=-1)
+    #print('max_contact:',max_contact)
+    #area = torch.zeros_like(area)
+    pressure=torch.where(area>1e-8,max_contact/area,0)
+    #print('pressure:',pressure)
+    # print('max pressure:',torch.max(pressure,dim=1).values)
+    max_pressure = torch.max(pressure, dim=1).values
+    penalty = (max_pressure-100000).clip(min=0) * 0.0001  # penalize high pressure
+    #print('penalty:',penalty)
+    return penalty.clip(max=100.0)  # clip the penalty to avoid extreme values
